@@ -21,16 +21,16 @@
         class="mb-10 flex h-36 w-36 items-center justify-center rounded-full shadow-lg sm:h-48 sm:w-48"
         :class="isDarkTheme ? 'border border-white/10 bg-primary-900/70' : 'bg-white/90'"
       >
-        <component :is="startIconComponent" :size="72" :style="{ color: accentColor }" />
+        <component :is="startIconComponent" :size="100" :style="{ color: accentColor }" />
       </div>
 
-      <h1 class="font-elegant text-6xl font-bold leading-[1.05] tracking-tight sm:text-8xl" :style="hudTextStyle">
+      <h1 class="font-elegant text-7xl font-bold leading-[1.05] tracking-tight sm:text-9xl" :style="hudTextStyle">
         <HighlightedText :text="title" :color="accentColor" />
       </h1>
       <h2
         v-if="config.headline"
         class="font-elegant mt-2 text-6xl font-bold leading-[1.05] tracking-tight sm:text-8xl"
-        :style="hudTextStyle"
+    
       >
         <HighlightedText :text="config.headline" :color="accentColor" />
       </h2>
@@ -46,8 +46,8 @@
 
       <p
         v-if="config.subtitle"
-        class="font-elegant mt-5 text-2xl italic tracking-wide sm:text-4xl"
-        :style="hudSubTextStyle"
+        class="font-elegant mt-5 text-3xl italic tracking-wide sm:text-5xl w-[70%]"
+        
       >
         <HighlightedText :text="config.subtitle" :color="accentColor" />
       </p>
@@ -61,7 +61,7 @@
         >
           <HighlightedText :text="startButtonText" variant="underline" />
         </button>
-        <p class="mt-5 flex items-center gap-2 text-base opacity-60 sm:text-lg" :style="hudSubTextStyle">
+        <p class="mt-5 flex items-center gap-2 text-base opacity-80 sm:text-lg" >
           <MousePointerClick :size="18" class="shrink-0" />
           <HighlightedText :text="startHintText" :color="accentColor" />
         </p>
@@ -172,10 +172,10 @@
 
         <p
           class="mt-9 flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-[0.3em]
-            opacity-60 sm:text-base"
-          :style="hudSubTextStyle"
+            opacity-70 sm:text-base"
+        
         >
-          <MousePointerClick :size="16" class="shrink-0" />
+          <MousePointerClick :size="16"  />
           Escolha sua resposta
         </p>
       </div>
@@ -222,22 +222,22 @@
       </p>
       <p class="mt-3 text-xl sm:text-2xl" :style="hudSubTextStyle">Obrigado por jogar!</p>
 
-      <div class="mt-12 flex w-full max-w-md flex-col items-stretch gap-4">
+      <div class="mt-12 flex w-full max-w-xl flex-col items-stretch gap-5">
         <button
-          class="inline-flex items-center justify-center gap-3 rounded-2xl px-12 py-6 text-2xl font-extrabold
-            text-white shadow-xl transition-transform active:scale-95 sm:text-3xl"
+          class="inline-flex items-center justify-center gap-4 rounded-2xl px-14 py-8 text-3xl font-extrabold
+            text-white shadow-xl transition-transform active:scale-[0.98] sm:text-4xl"
           :style="{ backgroundColor: accentColor }"
           @click="restart"
         >
-          <RotateCcw :size="28" /> Jogar novamente
+          <RotateCcw :size="36" /> Jogar novamente
         </button>
         <button
-          class="inline-flex items-center justify-center gap-3 rounded-2xl border-2 px-12 py-6 text-2xl
-            font-extrabold transition-transform active:scale-95 sm:text-3xl"
+          class="inline-flex items-center justify-center gap-4 rounded-2xl border-2 px-14 py-8 text-3xl
+            font-extrabold shadow-lg transition-transform active:scale-[0.98] sm:text-4xl"
           :style="outlineButtonStyle"
           @click="backToStart"
         >
-          <Home :size="28" /> Voltar ao início
+          <Home :size="36" /> Voltar ao início
         </button>
       </div>
     </div>
@@ -248,8 +248,8 @@
 import { ref, computed, onUnmounted, watch } from 'vue'
 import { RotateCcw, Trophy, MousePointerClick, HelpCircle, Star, Home } from '@lucide/vue'
 import HighlightedText from '@/components/HighlightedText.vue'
-import { ICON_MAP } from '@/components/iconMap'
 import { useGameSounds } from '@/composables/useGameSounds'
+import { useGameTheme } from '@/composables/useGameTheme'
 
 const props = defineProps({
   title: { type: String, default: 'Quiz' },
@@ -267,67 +267,35 @@ const timerCircumference = 2 * Math.PI * TIMER_RADIUS
 
 const questions = computed(() => props.config?.questions || [])
 const hasQuestions = computed(() => questions.value.length > 0)
-const accentColor = computed(() => props.config?.primary_color || '#10939b')
-const timerSeconds = computed(() => props.config?.timer_seconds || null)
-const soundEnabled = computed(() => props.config?.sound_enabled !== false)
-const pointsPerQuestion = computed(() => props.config?.points_per_question || 10)
+
+const {
+  accentColor,
+  timerSeconds,
+  soundEnabled,
+  pointsPerQuestion,
+  isDarkTheme,
+  hasBackgroundImage,
+  useLightText,
+  useDarkSurface,
+  hudTextStyle,
+  hudSubTextStyle,
+  cardSurfaceClass,
+  cardTextClass,
+  cardMutedClass,
+  cardMuted2Class,
+  containerStyle,
+  startButtonText,
+  startHintText,
+  startIconComponent,
+  dividerFadeStyle,
+  cardDividerFadeStyle,
+  buttonStyle,
+  outlineButtonStyle,
+  timerColorFor,
+  glowStyleFor,
+} = useGameTheme(props)
+
 const { playCorrect, playIncorrect, playWin, playLose, startCountdown, stopCountdown } = useGameSounds(soundEnabled)
-
-const isDarkTheme = computed(() => props.config?.theme === 'escuro')
-const hasBackgroundImage = computed(() => Boolean(props.config?.background_url))
-
-// Texto solto (título/subtítulo/HUD/mensagens): só vira claro quando tem foto de
-// fundo (pra garantir legibilidade sobre qualquer imagem imprevisível). No tema
-// escuro sem foto, o texto continua na tinta escura elegante — igual ao tema
-// claro — em vez de virar branco; foi um pedido explícito do usuário depois de
-// ver o preview real ("modo escuro deve mudar os textos pra escuro também").
-const useLightText = computed(() => hasBackgroundImage.value)
-// No tema escuro sem foto de fundo, tinta escura pura ficava quase invisível
-// contra o gradiente escuro (testado e confirmado ilegível) — mantém a cor
-// escura pedida, mas com um halo claro sutil atrás das letras só pra garantir
-// contraste, sem parecer "texto branco".
-const hudTextStyle = computed(() => {
-  if (useLightText.value) return { color: '#ffffff', textShadow: '0 1px 10px rgba(0,0,0,0.35)' }
-  if (isDarkTheme.value) {
-    return { color: '#2b2b2b', textShadow: '0 0 20px rgba(255,255,255,0.55), 0 0 6px rgba(255,255,255,0.45)' }
-  }
-  return { color: '#2b2b2b' }
-})
-const hudSubTextStyle = computed(() => {
-  if (useLightText.value) return { color: 'rgba(255,255,255,0.85)', textShadow: '0 1px 8px rgba(0,0,0,0.3)' }
-  if (isDarkTheme.value) {
-    return { color: '#6b6b6b', textShadow: '0 0 16px rgba(255,255,255,0.5), 0 0 5px rgba(255,255,255,0.4)' }
-  }
-  return { color: '#6b6b6b' }
-})
-
-// Superfícies opacas (card da pergunta/resultado, alternativas, bolinha do
-// ícone): escurecem tanto com foto de fundo quanto com o tema escuro
-// selecionado — diferente do texto, aqui um vidro/cartão escuro sempre fica
-// melhor que branco puro nos dois casos.
-const useDarkSurface = computed(() => hasBackgroundImage.value || isDarkTheme.value)
-const cardSurfaceClass = computed(() =>
-  isDarkTheme.value ? 'border border-white/10 bg-primary-900/85' : 'bg-white/95'
-)
-const cardTextClass = computed(() => (isDarkTheme.value ? 'text-white' : 'text-ink'))
-const cardMutedClass = computed(() => (isDarkTheme.value ? 'text-white/55' : 'text-ink-soft'))
-const cardMuted2Class = computed(() => (isDarkTheme.value ? 'text-white/70' : 'text-ink-muted'))
-
-const containerStyle = computed(() => {
-  if (props.config?.background_url) {
-    return {
-      backgroundImage: `url(${props.config.background_url})`,
-      backgroundSize: 'cover',
-      backgroundPosition: 'center',
-    }
-  }
-  const dark = props.config?.theme === 'escuro'
-  return {
-    background: dark
-      ? 'radial-gradient(circle at 20% 20%, #0f6971 0%, #05161a 60%, #05161a 100%)'
-      : 'radial-gradient(circle at 20% 20%, #d9e8e6 0%, #fcf8f5 45%, #f6f2e9 100%)',
-  }
-})
 
 const phase = ref('start')
 const currentIndex = ref(0)
@@ -349,14 +317,7 @@ const timerDashOffset = computed(() => {
   return timerCircumference * (1 - ratio)
 })
 
-// Verde no começo, amarelo/laranja a partir da metade do tempo, vermelho nos
-// últimos 4s — pedido explícito do usuário pra dar mais urgência visual.
-const timerColor = computed(() => {
-  if (!timerSeconds.value) return accentColor.value
-  if (timeLeft.value <= 4) return '#ef4444'
-  if (timeLeft.value <= timerSeconds.value / 2) return '#f59e0b'
-  return '#22c55e'
-})
+const timerColor = timerColorFor(timeLeft)
 
 const won = computed(() => {
   if (!questions.value.length) return false
@@ -370,53 +331,7 @@ const resultMessage = computed(() => {
   return props.config?.lose_message || 'Quase lá! Bora tentar de novo?'
 })
 
-const startButtonText = computed(() => props.config?.start_button_text || 'Toque para começar')
-const startHintText = computed(() => props.config?.start_hint || 'Responda e veja sua pontuação no final')
-const startIconComponent = computed(() => ICON_MAP[props.config?.icon] || null)
-
-// Divisor ornamental do início: duas linhas que desvanecem em direção ao
-// losango central, em vez de um traço reto liso — usa a mesma cor do texto
-// solto ao redor (clara ou escura conforme o tema) só que esmaecendo via
-// gradiente até transparente na ponta externa.
-function dividerFadeStyle(reversed) {
-  const c = useLightText.value ? 'rgba(255,255,255,0.55)' : 'rgba(43,43,43,0.4)'
-  const dir = reversed ? 'to left' : 'to right'
-  return { background: `linear-gradient(${dir}, transparent, ${c})` }
-}
-
-// Mesma ideia do divisor da tela inicial, mas com a cor baseada no tema do
-// card (branco/escuro) em vez de `useLightText` (que é sobre o fundo da
-// página) — esse divisor vive dentro do card da pergunta.
-function cardDividerFadeStyle(reversed) {
-  const c = isDarkTheme.value ? 'rgba(255,255,255,0.35)' : 'rgba(43,43,43,0.25)'
-  const dir = reversed ? 'to left' : 'to right'
-  return { background: `linear-gradient(${dir}, transparent, ${c})` }
-}
-
-const buttonStyle = computed(() => ({
-  backgroundColor: accentColor.value,
-  backgroundImage: 'linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0))',
-  borderColor: 'rgba(255,255,255,0.25)',
-  boxShadow: `0 16px 34px -12px ${accentColor.value}b3, 0 2px 6px rgba(0,0,0,0.15)`,
-}))
-
-// Botão "fantasma" (Voltar ao início): só contorno, cor de texto igual ao
-// resto do texto solto da tela (branco sobre foto/tema escuro, tinta escura
-// no tema claro) — não usa `accentColor` pra não competir com o botão sólido
-// ao lado.
-const outlineButtonStyle = computed(() => ({
-  borderColor: useLightText.value ? 'rgba(255,255,255,0.4)' : 'rgba(43,43,43,0.25)',
-  color: hudTextStyle.value.color,
-}))
-
-const glowStyle = computed(() => {
-  if (!flash.value) return { opacity: 0 }
-  const rgb = flash.value === 'correct' ? '34,197,94' : '239,68,68'
-  return {
-    opacity: 1,
-    boxShadow: `inset 0 0 40px 16px rgba(${rgb},0.5), inset 0 0 280px 100px rgba(${rgb},0.26)`,
-  }
-})
+const glowStyle = glowStyleFor(flash)
 
 function pad(n) {
   return String(n).padStart(2, '0')
@@ -424,9 +339,13 @@ function pad(n) {
 
 function optionClass(index) {
   if (!answered.value) {
-    return useDarkSurface.value
-      ? 'border-white/40 bg-white/15 text-white hover:bg-white/25'
-      : 'border-ink/10 bg-white text-ink hover:border-primary hover:bg-primary-50'
+    // Vidro escuro no tema escuro (já validado); no tema claro com foto, vidro
+    // CLARO com texto escuro em vez do mesmo branco borrado — antes usava o
+    // mesmo tom branco/blur do tema escuro e ficava "branco demais" sobre um
+    // fundo já clareado pela cortina, sem contraste nenhum entre botão e fundo.
+    if (isDarkTheme.value) return 'border-white/40 bg-white/15 text-white hover:bg-white/25'
+    if (hasBackgroundImage.value) return 'border-ink/10 bg-white/55 text-ink hover:bg-white/70'
+    return 'border-ink/10 bg-white text-ink hover:border-primary hover:bg-primary-50'
   }
   // Acerto/erro: mantém o vidro translúcido (backdrop-blur já vem da classe fixa
   // no template) só tingido de verde/vermelho, em vez de virar um bloco sólido
@@ -437,7 +356,9 @@ function optionClass(index) {
   if (index === selectedIndex.value) {
     return 'border-red-400 bg-red-500/25 text-white'
   }
-  return useDarkSurface.value ? 'border-white/20 bg-white/5 text-white/50' : 'border-ink/10 bg-white/40 text-ink opacity-50'
+  if (isDarkTheme.value) return 'border-white/20 bg-white/5 text-white/50'
+  if (hasBackgroundImage.value) return 'border-ink/10 bg-white/30 text-ink/50'
+  return 'border-ink/10 bg-white/40 text-ink opacity-50'
 }
 
 function badgeStyle(index) {
@@ -448,7 +369,7 @@ function badgeStyle(index) {
     return { backgroundColor: '#ef4444' }
   }
   if (answered.value) {
-    return { backgroundColor: useDarkSurface.value ? 'rgba(255,255,255,0.15)' : 'rgba(43,43,43,0.15)' }
+    return { backgroundColor: isDarkTheme.value ? 'rgba(255,255,255,0.15)' : 'rgba(43,43,43,0.15)' }
   }
   return { backgroundColor: accentColor.value }
 }

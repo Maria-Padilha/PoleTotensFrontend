@@ -8,9 +8,10 @@ import sucessoSrc from '@/assets/audios/sucesso.mp3'
 // cronômetro só passa a tocar de verdade depois do primeiro clique numa
 // alternativa (ou do "Toque para começar").
 export function useGameSounds(enabledRef) {
-  function playOnce(src) {
+  function playOnce(src, volume = 0.5) {
     if (!enabledRef.value) return
     const audio = new Audio(src)
+    audio.volume = volume
     audio.play().catch(() => {})
   }
 
@@ -19,7 +20,7 @@ export function useGameSounds(enabledRef) {
   }
 
   function playIncorrect() {
-    playOnce(perguntaErradaSrc)
+    playOnce(perguntaErradaSrc, 1)
   }
 
   function playWin() {
@@ -58,6 +59,7 @@ export function useGameSounds(enabledRef) {
       }
     }
     audio.addEventListener('timeupdate', countdownHandler)
+    audio.volume = 0.5
     audio.play().catch(() => {})
     countdownAudio = audio
   }

@@ -112,7 +112,7 @@
         </div>
 
         <template v-else>
-          <div class="flex items-center justify-between">
+          <div v-if="!isInstanceFormOpen" class="flex items-center justify-between">
             <p class="text-sm text-ink-muted">Jogos personalizados disponíveis para este evento.</p>
             <button class="btn-primary shrink-0" @click="openCreateInstance">
               <Plus :size="16" /> Adicionar jogo
@@ -134,28 +134,29 @@
             @cancel="closeInstanceForm"
           />
 
-          <p v-if="!loadingInstances && gameInstances.length === 0" class="mt-6 text-sm text-ink-muted">
-            Nenhum jogo adicionado ainda.
-          </p>
+          <GameInstanceForm
+            v-if="editingInstance"
+            class="mt-4"
+            editing
+            :form="instanceForm"
+            :game-def="gameDef"
+            :event-id="event.id"
+            :game-slug="selectedGameSlug"
+            :error="instanceError"
+            :saving="savingInstance"
+            :preview-link="previewLinks[editingInstance.id]"
+            @save="handleSubmitInstance"
+            @cancel="closeInstanceForm"
+            @generate-preview="handleGeneratePreview(editingInstance)"
+          />
 
-          <div class="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            <template v-for="instance in gameInstances" :key="instance.id">
-              <GameInstanceForm
-                v-if="editingInstance && editingInstance.id === instance.id"
-                class="sm:col-span-2 xl:col-span-3"
-                editing
-                :form="instanceForm"
-                :game-def="gameDef"
-                :event-id="event.id"
-                :game-slug="selectedGameSlug"
-                :error="instanceError"
-                :saving="savingInstance"
-                :preview-link="previewLinks[instance.id]"
-                @save="handleSubmitInstance"
-                @cancel="closeInstanceForm"
-                @generate-preview="handleGeneratePreview(instance)"
-              />
-              <div v-else class="card flex flex-col gap-2">
+          <template v-if="!isInstanceFormOpen">
+            <p v-if="!loadingInstances && gameInstances.length === 0" class="mt-6 text-sm text-ink-muted">
+              Nenhum jogo adicionado ainda.
+            </p>
+
+            <div class="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              <div v-for="instance in gameInstances" :key="instance.id" class="card flex flex-col gap-2">
                 <div class="flex items-center justify-between">
                   <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-50 text-primary-600">
                     <Gamepad2 :size="18" />
@@ -204,8 +205,8 @@
                   {{ previewLinks[instance.id] }}
                 </a>
               </div>
-            </template>
-          </div>
+            </div>
+          </template>
         </template>
       </div>
 
@@ -302,6 +303,11 @@ const savingInstance = ref(false)
 const instanceError = ref('')
 const previewLinks = reactive({})
 
+// enquanto o form de criar/editar tá aberto, esconde a lista de cards inteira
+// (inclusive o botão "Adicionar jogo") — evita a confusão de outros jogos
+// aparecendo junto do que está sendo editado.
+const isInstanceFormOpen = computed(() => showInstanceForm.value || Boolean(editingInstance.value))
+
 function defaultInstanceConfig() {
   return {
     theme: 'claro',
@@ -320,6 +326,7 @@ function defaultInstanceConfig() {
     lose_message: '',
     sound_enabled: true,
     questions: [],
+    statements: [],
   }
 }
 
