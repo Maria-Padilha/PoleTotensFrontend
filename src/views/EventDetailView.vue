@@ -327,6 +327,8 @@ function defaultInstanceConfig() {
     sound_enabled: true,
     questions: [],
     statements: [],
+    words: [],
+    cards: [],
   }
 }
 

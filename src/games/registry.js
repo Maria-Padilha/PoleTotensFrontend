@@ -2,6 +2,12 @@ import QuizPlayer from './quiz/QuizPlayer.vue'
 import QuizQuestionsEditor from './quiz/QuizQuestionsEditor.vue'
 import VerdadeiroFalsoPlayer from './verdadeiro-ou-falso/VerdadeiroFalsoPlayer.vue'
 import VerdadeiroFalsoStatementsEditor from './verdadeiro-ou-falso/VerdadeiroFalsoStatementsEditor.vue'
+import ForcaPlayer from './forca/ForcaPlayer.vue'
+import ForcaWordsEditor from './forca/ForcaWordsEditor.vue'
+import CacaPalavrasPlayer from './caca-palavras/CacaPalavrasPlayer.vue'
+import CacaPalavrasWordsEditor from './caca-palavras/CacaPalavrasWordsEditor.vue'
+import MemoriaPlayer from './jogo-da-memoria/MemoriaPlayer.vue'
+import MemoriaCardsEditor from './jogo-da-memoria/MemoriaCardsEditor.vue'
 
 export const gameRegistry = {
   quiz: {
@@ -15,6 +21,24 @@ export const gameRegistry = {
     editor: VerdadeiroFalsoStatementsEditor,
     editorField: 'statements',
     defaultConfig: () => ({ statements: [] }),
+  },
+  forca: {
+    player: ForcaPlayer,
+    editor: ForcaWordsEditor,
+    editorField: 'words',
+    defaultConfig: () => ({ words: [] }),
+  },
+  'caca-palavras': {
+    player: CacaPalavrasPlayer,
+    editor: CacaPalavrasWordsEditor,
+    editorField: 'words',
+    defaultConfig: () => ({ words: [] }),
+  },
+  'jogo-da-memoria': {
+    player: MemoriaPlayer,
+    editor: MemoriaCardsEditor,
+    editorField: 'cards',
+    defaultConfig: () => ({ cards: [] }),
   },
 }
 
