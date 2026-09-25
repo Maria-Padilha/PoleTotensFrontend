@@ -21,7 +21,8 @@
         v-model="word.word"
         type="text"
         placeholder="Ex: ANIVERSARIO"
-        class="flex-1 uppercase"
+        class="w-full flex-1 rounded-xl border border-ink/10 bg-white px-4 py-2.5 text-sm uppercase text-ink
+          outline-none transition-colors focus:border-primary"
         maxlength="30"
       />
       <span

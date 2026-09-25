@@ -129,6 +129,13 @@
         placeholder="Quase lá! Bora tentar de novo?"
         :color="form.config.primary_color"
       />
+      <HighlightPicker
+        id="instance_neutral"
+        v-model="form.config.neutral_message"
+        label="Mensagem neutra (opcional — usada pela Roleta em resultados neutros)"
+        placeholder="Foi por pouco!"
+        :color="form.config.primary_color"
+      />
 
       <label class="flex items-center gap-2 text-sm font-bold text-ink">
         <input v-model="form.config.sound_enabled" type="checkbox" class="h-4 w-4 accent-primary" />

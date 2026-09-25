@@ -270,6 +270,8 @@ const props = defineProps({
   topInset: { type: Number, default: 0 },
 })
 
+const emit = defineEmits(['finished', 'restarted', 'back-to-start'])
+
 const phasePadding = computed(() => ({ paddingTop: `${props.topInset}px` }))
 
 const TIMER_RADIUS = 24
@@ -301,6 +303,7 @@ const {
   outlineButtonStyle,
   timerColorFor,
   glowStyleFor,
+  pointsWithSpeedBonus,
 } = useGameTheme(props)
 
 const { playCorrect, playIncorrect, playWin, playLose, startCountdown, stopCountdown } = useGameSounds(soundEnabled)
@@ -308,6 +311,7 @@ const { playCorrect, playIncorrect, playWin, playLose, startCountdown, stopCount
 const phase = ref('start')
 const currentIndex = ref(0)
 const correctCount = ref(0)
+const earnedPoints = ref(0)
 const answered = ref(false)
 const selectedAnswer = ref(null)
 const timeLeft = ref(timerSeconds.value || 0)
@@ -316,7 +320,7 @@ let intervalId = null
 let flashTimeoutId = null
 
 const currentStatement = computed(() => statements.value[currentIndex.value] || null)
-const points = computed(() => correctCount.value * pointsPerQuestion.value)
+const points = computed(() => earnedPoints.value)
 const maxPoints = computed(() => statements.value.length * pointsPerQuestion.value)
 
 const timerDashOffset = computed(() => {
@@ -424,6 +428,7 @@ function selectAnswer(value) {
   const isCorrect = value === currentStatement.value.correct_answer
   if (isCorrect) {
     correctCount.value += 1
+    earnedPoints.value += pointsWithSpeedBonus(pointsPerQuestion.value, timeLeft.value)
     triggerFlash('correct')
     playCorrect()
   } else {
@@ -448,24 +453,29 @@ function selectAnswer(value) {
 function restart() {
   currentIndex.value = 0
   correctCount.value = 0
+  earnedPoints.value = 0
   answered.value = false
   selectedAnswer.value = null
   phase.value = 'playing'
   startTimer()
+  emit('restarted')
 }
 
 function backToStart() {
   currentIndex.value = 0
   correctCount.value = 0
+  earnedPoints.value = 0
   answered.value = false
   selectedAnswer.value = null
   phase.value = 'start'
+  emit('back-to-start')
 }
 
 watch(
   () => phase.value,
   (value) => {
     if (value !== 'playing') stopTimer()
+    if (value === 'finished') emit('finished', { score: points.value, maxScore: maxPoints.value, won: won.value })
   }
 )
 

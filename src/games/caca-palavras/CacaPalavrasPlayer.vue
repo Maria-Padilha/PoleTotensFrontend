@@ -249,6 +249,8 @@ const props = defineProps({
   topInset: { type: Number, default: 0 },
 })
 
+const emit = defineEmits(['finished', 'restarted', 'back-to-start'])
+
 const phasePadding = computed(() => ({ paddingTop: `${props.topInset}px` }))
 
 const GRID_SIZE = 12
@@ -288,6 +290,7 @@ const {
   outlineButtonStyle,
   timerColorFor,
   glowStyleFor,
+  pointsWithSpeedBonus,
 } = useGameTheme(props)
 
 const { playCorrect, playIncorrect, playWin, playLose, startCountdown, stopCountdown } = useGameSounds(soundEnabled)
@@ -303,6 +306,7 @@ const placedWords = ref([])
 const locked = ref(false)
 const timeLeft = ref(timerSeconds.value || 0)
 const flash = ref(null)
+const earnedPoints = ref(0)
 let intervalId = null
 let flashTimeoutId = null
 let wrongTimeoutId = null
@@ -315,7 +319,7 @@ const wrongCells = ref([])
 const correctCount = computed(() => placedWords.value.filter((w) => w.found).length)
 const totalWords = computed(() => placedWords.value.length)
 const allFound = computed(() => totalWords.value > 0 && correctCount.value === totalWords.value)
-const points = computed(() => correctCount.value * pointsPerQuestion.value)
+const points = computed(() => earnedPoints.value)
 const maxPoints = computed(() => totalWords.value * pointsPerQuestion.value)
 
 const timerDashOffset = computed(() => {
@@ -514,6 +518,9 @@ function onPointerUp() {
   const match = findMatch(path)
   if (match) {
     match.found = true
+    // tempo pesa muito mais que a pontuação fixa nesse jogo (pedido
+    // explícito do usuário) — achar rápido vale bem mais que no fim do tempo.
+    earnedPoints.value += pointsWithSpeedBonus(pointsPerQuestion.value, timeLeft.value, 0.15)
     triggerFlash('correct')
     playCorrect()
     if (allFound.value) finishRound()
@@ -584,8 +591,10 @@ function start() {
   buildPuzzle()
   locked.value = false
   wrongCells.value = []
+  earnedPoints.value = 0
   phase.value = 'playing'
   startTimer()
+  emit('restarted')
 }
 
 function restart() {
@@ -596,12 +605,14 @@ function backToStart() {
   stopTimer()
   locked.value = false
   phase.value = 'start'
+  emit('back-to-start')
 }
 
 watch(
   () => phase.value,
   (value) => {
     if (value !== 'playing') stopTimer()
+    if (value === 'finished') emit('finished', { score: points.value, maxScore: maxPoints.value, won: won.value })
   }
 )
 

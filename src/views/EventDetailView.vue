@@ -93,6 +93,26 @@
             <textarea id="description" v-model="form.description" rows="3" />
           </div>
 
+          <div class="field max-w-sm">
+            <label for="access_password">
+              Senha de acesso ao evento no totem (opcional)
+            </label>
+            <input
+              id="access_password"
+              v-model="form.access_password"
+              type="text"
+              :placeholder="event.has_access_password ? 'Já tem uma senha definida — digite pra trocar' : 'Sem senha — qualquer um acessa direto'"
+            />
+            <button
+              v-if="event.has_access_password"
+              type="button"
+              class="mt-1 self-start text-xs font-bold text-danger hover:underline"
+              @click="handleClearEventPassword"
+            >
+              Remover senha
+            </button>
+          </div>
+
           <p v-if="error" class="field-error">{{ error }}</p>
 
           <button type="submit" class="btn-primary" :disabled="saving">
@@ -250,12 +270,53 @@
         </ul>
       </div>
 
-      <div v-else-if="tab === 'midia'" class="mt-6 flex flex-col items-center gap-2 rounded-2xl border
-        border-dashed border-ink/15 bg-white px-6 py-14 text-center text-ink-muted">
-        <ImageIcon :size="28" />
-        <h3 class="mt-1 text-ink">Nenhuma mídia disponível ainda</h3>
-        <p class="max-w-sm text-sm">
-          O recap e outros materiais do evento vão aparecer aqui quando estiverem prontos.
+      <div v-else-if="tab === 'midia'" class="card mt-6 space-y-4">
+        <div>
+          <h3 class="text-base font-bold text-ink">Recap do evento</h3>
+          <p class="mt-1 text-sm text-ink-muted">
+            Agrega as jogadas registradas (nome do jogador + pontuação) num resumo estilo "retrospectiva" —
+            total de jogadas, jogadores, jogo mais jogado e ranking geral. Pode gerar de novo a qualquer
+            momento pra atualizar com as jogadas mais recentes.
+          </p>
+        </div>
+
+        <div class="field max-w-md">
+          <label>Música de fundo (opcional)</label>
+          <AudioUploadField
+            v-model="recapMusicUrl"
+            :event-id="event.id"
+            game-slug="recap"
+            folder="musica"
+          />
+        </div>
+
+        <div class="flex flex-wrap items-center gap-3">
+          <button class="btn-primary" :disabled="generatingRecap" @click="handleGenerateRecap">
+            <Sparkles :size="15" /> {{ generatingRecap ? 'Gerando...' : recap?.generated_at ? 'Gerar novamente' : 'Gerar recap' }}
+          </button>
+          <a
+            v-if="recap?.recap_path"
+            :href="`${origin}${recap.recap_path}`"
+            target="_blank"
+            rel="noopener"
+            class="btn-outline"
+          >
+            <Link2 :size="15" /> Abrir recap
+          </a>
+        </div>
+
+        <a
+          v-if="recap?.recap_path"
+          :href="`${origin}${recap.recap_path}`"
+          target="_blank"
+          rel="noopener"
+          class="block break-all rounded-lg bg-primary-50 p-2 text-xs font-semibold text-primary-600
+            hover:underline"
+        >
+          {{ origin }}{{ recap.recap_path }}
+        </a>
+        <p v-if="recap?.generated_at" class="text-xs text-ink-soft">
+          Gerado em {{ formatDate(recap.generated_at) }}
         </p>
       </div>
     </section>
@@ -276,12 +337,14 @@ import {
   Pencil,
   Link2,
   Check,
+  Sparkles,
 } from '@lucide/vue'
 import api from '@/services/api'
 import AppShell from '@/layouts/AppShell.vue'
 import { getGameDefinition } from '@/games/registry'
 import HighlightedText from '@/components/HighlightedText.vue'
 import GameInstanceForm from '@/components/GameInstanceForm.vue'
+import AudioUploadField from '@/components/AudioUploadField.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -302,6 +365,11 @@ const editingInstance = ref(null)
 const savingInstance = ref(false)
 const instanceError = ref('')
 const previewLinks = reactive({})
+const origin = window.location.origin
+
+const recap = ref(null)
+const recapMusicUrl = ref('')
+const generatingRecap = ref(false)
 
 // enquanto o form de criar/editar tá aberto, esconde a lista de cards inteira
 // (inclusive o botão "Adicionar jogo") — evita a confusão de outros jogos
@@ -324,11 +392,13 @@ function defaultInstanceConfig() {
     win_threshold: 60,
     win_message: '',
     lose_message: '',
+    neutral_message: '',
     sound_enabled: true,
     questions: [],
     statements: [],
     words: [],
     cards: [],
+    prizes: [],
   }
 }
 
@@ -375,6 +445,7 @@ const form = reactive({
   starts_at: '',
   ends_at: '',
   description: '',
+  access_password: '',
 })
 
 const availableTotems = computed(() => {
@@ -398,6 +469,7 @@ function fillForm() {
   form.starts_at = event.value.starts_at ? event.value.starts_at.slice(0, 16) : ''
   form.ends_at = event.value.ends_at ? event.value.ends_at.slice(0, 16) : ''
   form.description = event.value.description || ''
+  form.access_password = ''
 }
 
 async function loadEvent() {
@@ -422,6 +494,12 @@ async function handleSave() {
   } finally {
     saving.value = false
   }
+}
+
+async function handleClearEventPassword() {
+  if (!confirm('Remover a senha de acesso deste evento?')) return
+  await api.put(`/events/${route.params.id}`, { ...form, clear_access_password: true })
+  await loadEvent()
 }
 
 async function handleRemoveEvent() {
@@ -538,8 +616,26 @@ async function handleGeneratePreview(instance) {
   previewLinks[instance.id] = `${window.location.origin}${data.preview_path}`
 }
 
+async function loadRecap() {
+  const { data } = await api.get(`/events/${route.params.id}/recap`)
+  recap.value = data.generated_at ? data : null
+  recapMusicUrl.value = data.music_url || ''
+}
+
+async function handleGenerateRecap() {
+  generatingRecap.value = true
+  try {
+    const { data } = await api.post(`/events/${route.params.id}/recap/generate`, {
+      music_url: recapMusicUrl.value || null,
+    })
+    recap.value = data
+  } finally {
+    generatingRecap.value = false
+  }
+}
+
 onMounted(async () => {
-  await Promise.all([loadEvent(), loadTotems(), loadMyGames()])
+  await Promise.all([loadEvent(), loadTotems(), loadMyGames(), loadRecap()])
   await loadGameInstances()
 })
 </script>

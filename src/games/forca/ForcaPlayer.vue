@@ -279,6 +279,8 @@ const props = defineProps({
   topInset: { type: Number, default: 0 },
 })
 
+const emit = defineEmits(['finished', 'restarted', 'back-to-start'])
+
 const phasePadding = computed(() => ({ paddingTop: `${props.topInset}px` }))
 
 // pedido explícito do usuário: 6 chances (corações), não configurável por
@@ -318,6 +320,7 @@ const {
   outlineButtonStyle,
   timerColorFor,
   glowStyleFor,
+  pointsWithSpeedBonus,
 } = useGameTheme(props)
 
 const { playCorrect, playIncorrect, playWin, playLose, startCountdown, stopCountdown } = useGameSounds(soundEnabled)
@@ -325,6 +328,7 @@ const { playCorrect, playIncorrect, playWin, playLose, startCountdown, stopCount
 const phase = ref('start')
 const currentIndex = ref(0)
 const correctCount = ref(0)
+const earnedPoints = ref(0)
 const guessedLetters = ref(new Set())
 const roundLocked = ref(false)
 const timeLeft = ref(timerSeconds.value || 0)
@@ -333,7 +337,7 @@ let intervalId = null
 let flashTimeoutId = null
 
 const currentWord = computed(() => words.value[currentIndex.value] || null)
-const points = computed(() => correctCount.value * pointsPerQuestion.value)
+const points = computed(() => earnedPoints.value)
 const maxPoints = computed(() => words.value.length * pointsPerQuestion.value)
 
 // letras acentuadas contam como a letra "base" pro teclado simples (A-Z) —
@@ -483,6 +487,7 @@ function guessLetter(letter) {
   if (solved.value) {
     roundLocked.value = true
     correctCount.value += 1
+    earnedPoints.value += pointsWithSpeedBonus(pointsPerQuestion.value, timeLeft.value)
     triggerFlash('correct')
     scheduleAdvance()
   } else if (lost.value) {
@@ -495,24 +500,29 @@ function guessLetter(letter) {
 function restart() {
   currentIndex.value = 0
   correctCount.value = 0
+  earnedPoints.value = 0
   guessedLetters.value = new Set()
   roundLocked.value = false
   phase.value = 'playing'
   startTimer()
+  emit('restarted')
 }
 
 function backToStart() {
   currentIndex.value = 0
   correctCount.value = 0
+  earnedPoints.value = 0
   guessedLetters.value = new Set()
   roundLocked.value = false
   phase.value = 'start'
+  emit('back-to-start')
 }
 
 watch(
   () => phase.value,
   (value) => {
     if (value !== 'playing') stopTimer()
+    if (value === 'finished') emit('finished', { score: points.value, maxScore: maxPoints.value, won: won.value })
   }
 )
 

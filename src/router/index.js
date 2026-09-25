@@ -49,6 +49,26 @@ const routes = [
     name: 'preview',
     component: () => import('@/views/PreviewView.vue'),
   },
+  {
+    path: '/jogar/:token',
+    name: 'jogar',
+    component: () => import('@/views/PlayView.vue'),
+  },
+  {
+    path: '/totem/:token',
+    name: 'totem-publico',
+    component: () => import('@/views/TotemView.vue'),
+  },
+  {
+    path: '/foto/:token',
+    name: 'foto',
+    component: () => import('@/views/PhotoUploadView.vue'),
+  },
+  {
+    path: '/recap/:token',
+    name: 'recap',
+    component: () => import('@/views/RecapView.vue'),
+  },
 ]
 
 const router = createRouter({

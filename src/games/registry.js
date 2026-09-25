@@ -8,6 +8,8 @@ import CacaPalavrasPlayer from './caca-palavras/CacaPalavrasPlayer.vue'
 import CacaPalavrasWordsEditor from './caca-palavras/CacaPalavrasWordsEditor.vue'
 import MemoriaPlayer from './jogo-da-memoria/MemoriaPlayer.vue'
 import MemoriaCardsEditor from './jogo-da-memoria/MemoriaCardsEditor.vue'
+import RoletaPlayer from './roleta-de-brindes/RoletaPlayer.vue'
+import RoletaPrizesEditor from './roleta-de-brindes/RoletaPrizesEditor.vue'
 
 export const gameRegistry = {
   quiz: {
@@ -39,6 +41,12 @@ export const gameRegistry = {
     editor: MemoriaCardsEditor,
     editorField: 'cards',
     defaultConfig: () => ({ cards: [] }),
+  },
+  'roleta-de-brindes': {
+    player: RoletaPlayer,
+    editor: RoletaPrizesEditor,
+    editorField: 'prizes',
+    defaultConfig: () => ({ prizes: [] }),
   },
 }
 

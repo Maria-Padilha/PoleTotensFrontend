@@ -73,38 +73,56 @@
       </p>
 
       <div class="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-        <button
+        <div
           v-for="totem in filteredTotems"
           :key="totem.id"
-          class="card flex flex-col items-stretch gap-1 text-left transition-shadow hover:shadow-md
-            hover:shadow-ink/[0.06]"
-          @click="openEditForm(totem)"
+          class="card flex flex-col items-stretch gap-1 text-left"
         >
-          <div class="mb-1 flex items-center justify-between">
-            <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-50 text-primary-600">
-              <Monitor :size="18" />
+          <button class="flex flex-col items-stretch gap-1 text-left" @click="openEditForm(totem)">
+            <div class="mb-1 flex items-center justify-between">
+              <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-50 text-primary-600">
+                <Monitor :size="18" />
+              </span>
+              <span
+                title="Excluir"
+                class="flex h-8 w-8 items-center justify-center rounded-full text-ink-soft transition-colors
+                  hover:!bg-danger-tint hover:!text-danger"
+                @click.stop="handleDelete(totem)"
+              >
+                <Trash2 :size="15" />
+              </span>
+            </div>
+            <h3 class="text-base font-bold text-ink">{{ totem.name }}</h3>
+            <span class="font-mono text-xs text-ink-soft">{{ totem.slug }}</span>
+            <span v-if="totem.location" class="mt-0.5 inline-flex items-center gap-1 text-xs text-ink-muted">
+              <MapPin :size="12" /> {{ totem.location }}
             </span>
-            <span
-              title="Excluir"
-              class="flex h-8 w-8 items-center justify-center rounded-full text-ink-soft transition-colors
-                hover:!bg-danger-tint hover:!text-danger"
-              @click.stop="handleDelete(totem)"
-            >
-              <Trash2 :size="15" />
-            </span>
-          </div>
-          <h3 class="text-base font-bold text-ink">{{ totem.name }}</h3>
-          <span class="font-mono text-xs text-ink-soft">{{ totem.slug }}</span>
-          <span v-if="totem.location" class="mt-0.5 inline-flex items-center gap-1 text-xs text-ink-muted">
-            <MapPin :size="12" /> {{ totem.location }}
-          </span>
-          <div class="mt-3 flex items-center justify-between">
-            <span class="badge" :class="{ 'badge-muted': totem.status !== 'active' }">
-              {{ totem.status === 'active' ? 'Ativo' : 'Inativo' }}
-            </span>
-            <ChevronRight :size="18" class="text-ink-soft" />
-          </div>
-        </button>
+            <div class="mt-3 flex items-center justify-between">
+              <span class="badge" :class="{ 'badge-muted': totem.status !== 'active' }">
+                {{ totem.status === 'active' ? 'Ativo' : 'Inativo' }}
+              </span>
+              <ChevronRight :size="18" class="text-ink-soft" />
+            </div>
+          </button>
+
+          <button
+            class="btn-outline mt-2 !px-3 !py-1.5 text-xs"
+            @click.stop="handleGeneratePublicLink(totem)"
+          >
+            <Link2 :size="13" /> {{ totem.public_token ? 'Ver link do totem' : 'Gerar link do totem' }}
+          </button>
+          <a
+            v-if="totem.public_token"
+            :href="`${origin}/totem/${totem.public_token}`"
+            target="_blank"
+            rel="noopener"
+            class="mt-1 block break-all rounded-lg bg-green-50 p-2 text-xs font-semibold text-green-700
+              hover:underline"
+            @click.stop
+          >
+            {{ origin }}/totem/{{ totem.public_token }}
+          </a>
+        </div>
       </div>
     </section>
   </AppShell>
@@ -112,9 +130,11 @@
 
 <script setup>
 import { ref, onMounted, reactive, computed } from 'vue'
-import { Plus, Search, Monitor, MapPin, ChevronRight, Trash2 } from '@lucide/vue'
+import { Plus, Search, Monitor, MapPin, ChevronRight, Trash2, Link2 } from '@lucide/vue'
 import api from '@/services/api'
 import AppShell from '@/layouts/AppShell.vue'
+
+const origin = window.location.origin
 
 const totems = ref([])
 const loadingList = ref(true)
@@ -197,6 +217,11 @@ async function handleDelete(totem) {
   if (!confirm(`Excluir o totem "${totem.name}"?`)) return
   await api.delete(`/totems/${totem.id}`)
   await loadTotems()
+}
+
+async function handleGeneratePublicLink(totem) {
+  const { data } = await api.post(`/totems/${totem.id}/public-link`)
+  totem.public_token = data.public_token
 }
 
 onMounted(loadTotems)

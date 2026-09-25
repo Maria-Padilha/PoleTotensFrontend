@@ -143,12 +143,33 @@ export function useGameTheme(props) {
     })
   }
 
-  // Brilho clean nas bordas ao acertar/errar. Recebe o ref de `flash`
-  // ('correct' | 'incorrect' | null) de fora pelo mesmo motivo.
+  // Bônus por velocidade: responder rápido rende mais pontos — de 100% da
+  // pontuação base (resposta instantânea) até `minMultiplier` dela (resposta
+  // no último segundo do cronômetro). Só se aplica quando a rodada tem
+  // cronômetro configurado; sem cronômetro não tem como medir "mais
+  // rápido", então fica na pontuação cheia de sempre.
+  //
+  // `minMultiplier` controla o quanto o tempo pesa: 0.5 (padrão, usado em
+  // quiz/verdadeiro-ou-falso/forca) é um bônus moderado sobre uma pontuação
+  // por resposta que já é o essencial do jogo. Caça-palavras e jogo da
+  // memória usam um valor bem menor (pedido explícito do usuário: esses
+  // dois jogos dependem muito mais do tempo do que de pontuação fixa),
+  // deixando achar/casar rápido valer muito mais que achar/casar no fim do
+  // cronômetro.
+  function pointsWithSpeedBonus(basePoints, timeLeft, minMultiplier = 0.5) {
+    if (!timerSeconds.value || timeLeft == null) return basePoints
+    const ratio = Math.max(0, Math.min(1, timeLeft / timerSeconds.value))
+    const multiplier = minMultiplier + (1 - minMultiplier) * ratio
+    return Math.max(1, Math.round(basePoints * multiplier))
+  }
+
+  // Brilho clean nas bordas ao acertar/errar/neutro. Recebe o ref de `flash`
+  // ('correct' | 'incorrect' | 'neutral' | null) de fora pelo mesmo motivo.
   function glowStyleFor(flashRef) {
     return computed(() => {
       if (!flashRef.value) return { opacity: 0 }
-      const rgb = flashRef.value === 'correct' ? '34,197,94' : '239,68,68'
+      const rgb =
+        flashRef.value === 'correct' ? '34,197,94' : flashRef.value === 'neutral' ? '245,158,11' : '239,68,68'
       return {
         opacity: 1,
         boxShadow: `inset 0 0 40px 16px rgba(${rgb},0.5), inset 0 0 280px 100px rgba(${rgb},0.26)`,
@@ -181,5 +202,6 @@ export function useGameTheme(props) {
     outlineButtonStyle,
     timerColorFor,
     glowStyleFor,
+    pointsWithSpeedBonus,
   }
 }

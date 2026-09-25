@@ -253,6 +253,8 @@ const props = defineProps({
   topInset: { type: Number, default: 0 },
 })
 
+const emit = defineEmits(['finished', 'restarted', 'back-to-start'])
+
 const phasePadding = computed(() => ({ paddingTop: `${props.topInset}px` }))
 
 const TIMER_RADIUS = 24
@@ -282,6 +284,7 @@ const {
   outlineButtonStyle,
   timerColorFor,
   glowStyleFor,
+  pointsWithSpeedBonus,
 } = useGameTheme(props)
 
 const { playCorrect, playIncorrect, playWin, playLose, startCountdown, stopCountdown } = useGameSounds(soundEnabled)
@@ -294,6 +297,7 @@ const busy = ref(false)
 const locked = ref(false)
 const timeLeft = ref(timerSeconds.value || 0)
 const flash = ref(null)
+const earnedPoints = ref(0)
 let intervalId = null
 let flashTimeoutId = null
 let mismatchTimeoutId = null
@@ -301,7 +305,7 @@ let mismatchTimeoutId = null
 const totalPairs = computed(() => board.value.length / 2)
 const correctCount = computed(() => board.value.filter((c) => c.matched).length / 2)
 const allMatched = computed(() => totalPairs.value > 0 && correctCount.value === totalPairs.value)
-const points = computed(() => correctCount.value * pointsPerQuestion.value)
+const points = computed(() => earnedPoints.value)
 const maxPoints = computed(() => totalPairs.value * pointsPerQuestion.value)
 
 const gridColumns = computed(() => {
@@ -386,6 +390,9 @@ function flipCard(card) {
   if (firstCard.value.pairId === card.pairId) {
     firstCard.value.matched = true
     card.matched = true
+    // tempo pesa muito mais que a pontuação fixa nesse jogo (pedido
+    // explícito do usuário) — casar rápido vale bem mais que no fim do tempo.
+    earnedPoints.value += pointsWithSpeedBonus(pointsPerQuestion.value, timeLeft.value, 0.15)
     triggerFlash('correct')
     playCorrect()
     resetTurn()
@@ -441,9 +448,11 @@ function finishRound() {
 function start() {
   buildBoard()
   locked.value = false
+  earnedPoints.value = 0
   resetTurn()
   phase.value = 'playing'
   startTimer()
+  emit('restarted')
 }
 
 function restart() {
@@ -454,12 +463,14 @@ function backToStart() {
   stopTimer()
   locked.value = false
   phase.value = 'start'
+  emit('back-to-start')
 }
 
 watch(
   () => phase.value,
   (value) => {
     if (value !== 'playing') stopTimer()
+    if (value === 'finished') emit('finished', { score: points.value, maxScore: maxPoints.value, won: won.value })
   }
 )
 

@@ -73,7 +73,8 @@
             />
             <input
               v-model="question.options[oIndex]"
-              class="!py-2"
+              class="w-full rounded-xl border border-ink/10 bg-white px-4 py-2 text-sm text-ink outline-none
+                transition-colors focus:border-primary"
               :placeholder="`Alternativa ${oIndex + 1}`"
             />
             <button
