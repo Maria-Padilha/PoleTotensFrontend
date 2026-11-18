@@ -45,6 +45,12 @@ const routes = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/orcamentos',
+    name: 'orcamentos',
+    component: () => import('@/views/QuoteRequestsView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/preview/:token',
     name: 'preview',
     component: () => import('@/views/PreviewView.vue'),
@@ -58,11 +64,6 @@ const routes = [
     path: '/totem/:token',
     name: 'totem-publico',
     component: () => import('@/views/TotemView.vue'),
-  },
-  {
-    path: '/foto/:token',
-    name: 'foto',
-    component: () => import('@/views/PhotoUploadView.vue'),
   },
   {
     path: '/recap/:token',

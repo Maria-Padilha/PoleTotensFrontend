@@ -1,5 +1,5 @@
 <template>
-  <div class="relative min-h-screen overflow-hidden" :style="containerStyle">
+  <div class="game-typo relative min-h-screen overflow-hidden" :style="containerStyle">
     <!-- brilho clean nas bordas: acende verde ao formar um par -->
     <div class="pointer-events-none fixed inset-0 z-40 transition-all duration-700 ease-out" :style="glowStyle" />
 
@@ -77,16 +77,15 @@
       class="relative z-10 flex min-h-screen flex-col px-6 py-8 sm:px-20 sm:py-12"
       :style="phasePadding"
     >
-      <div class="flex items-center justify-between text-sm font-bold uppercase tracking-[0.2em] sm:text-2xl" :style="hudTextStyle">
-        <span class="inline-flex items-center gap-2">
-          <LayoutGrid :size="24" class="shrink-0 opacity-80" />
-          Pares {{ correctCount }} de {{ totalPairs }}
-        </span>
-        <span class="inline-flex items-center gap-2">
-          <Star :size="24" class="shrink-0 opacity-80" />
-          {{ points }} pontos
-        </span>
-      </div>
+      <GameHud
+        :icon="LayoutGrid"
+        :label="`Pares ${correctCount} de ${totalPairs}`"
+        :points="points"
+        :current="correctCount"
+        :total="totalPairs"
+        :accent-color="accentColor"
+        :dark="isDarkTheme"
+      />
 
       <div class="flex flex-1 flex-col items-center justify-center py-6">
         <div
@@ -242,6 +241,7 @@
 import { ref, computed, onUnmounted, watch } from 'vue'
 import { RotateCcw, Trophy, MousePointerClick, LayoutGrid, Star, Home } from '@lucide/vue'
 import HighlightedText from '@/components/HighlightedText.vue'
+import GameHud from '@/components/GameHud.vue'
 import { useGameSounds } from '@/composables/useGameSounds'
 import { useGameTheme } from '@/composables/useGameTheme'
 

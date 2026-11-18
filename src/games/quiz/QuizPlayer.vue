@@ -1,5 +1,5 @@
 <template>
-  <div class="relative min-h-screen overflow-hidden" :style="containerStyle">
+  <div class="game-typo relative min-h-screen overflow-hidden" :style="containerStyle">
     <!-- brilho clean nas bordas: verde ao acertar, vermelho ao errar -->
     <div class="pointer-events-none fixed inset-0 z-40 transition-all duration-700 ease-out" :style="glowStyle" />
 
@@ -77,16 +77,15 @@
       class="relative z-10 flex min-h-screen flex-col px-6 py-8 sm:px-20 sm:py-12"
       :style="phasePadding"
     >
-      <div class="flex items-center justify-between text-sm font-bold uppercase tracking-[0.2em] sm:text-xl" :style="hudTextStyle">
-        <span class="inline-flex items-center gap-2">
-          <HelpCircle :size="18" class="shrink-0 opacity-80" />
-          Pergunta {{ currentIndex + 1 }} de {{ questions.length }}
-        </span>
-        <span class="inline-flex items-center gap-2">
-          <Star :size="18" class="shrink-0 opacity-80" />
-          {{ points }} pontos
-        </span>
-      </div>
+      <GameHud
+        :icon="HelpCircle"
+        :label="`Pergunta ${currentIndex + 1} de ${questions.length}`"
+        :points="points"
+        :current="currentIndex + 1"
+        :total="questions.length"
+        :accent-color="accentColor"
+        :dark="isDarkTheme"
+      />
 
       <div class="flex flex-1 flex-col items-center justify-center py-6">
         <div
@@ -248,6 +247,7 @@
 import { ref, computed, onUnmounted, watch } from 'vue'
 import { RotateCcw, Trophy, MousePointerClick, HelpCircle, Star, Home } from '@lucide/vue'
 import HighlightedText from '@/components/HighlightedText.vue'
+import GameHud from '@/components/GameHud.vue'
 import { useGameSounds } from '@/composables/useGameSounds'
 import { useGameTheme } from '@/composables/useGameTheme'
 

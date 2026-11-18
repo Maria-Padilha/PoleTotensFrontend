@@ -139,3 +139,38 @@
     @apply text-sm font-medium text-danger;
   }
 }
+
+
+/* Tipografia personalizável dos jogos. As variáveis --gt-* só existem quando o
+   organizador definiu o valor; sem elas, `revert-layer` devolve o estilo
+   original do Tailwind (cada jogo mantém seu visual). Títulos usam a classe
+   .font-elegant; o resto herda a fonte/espaçamento dos textos. */
+.game-typo {
+  font-family: var(--gt-text-font, revert-layer);
+  font-weight: var(--gt-text-weight, revert-layer);
+  letter-spacing: var(--gt-text-spacing, revert-layer);
+}
+.game-typo .font-elegant {
+  font-family: var(--gt-title-font, revert-layer);
+  font-weight: var(--gt-title-weight, revert-layer);
+  letter-spacing: var(--gt-title-spacing, revert-layer);
+  /* tamanho do título: os tamanhos vêm de classes text-* fixas, então escala por zoom */
+  zoom: var(--gt-title-scale, 1);
+}
+
+/* Modo totem (classe posta no <html> pela TotemView): sem menu de toque longo, sem seleção de
+   texto e sem o flash cinza ao tocar. Campos de texto continuam selecionáveis. */
+html.kiosk,
+html.kiosk body {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  overscroll-behavior: none;
+}
+html.kiosk input,
+html.kiosk textarea {
+  -webkit-user-select: text;
+  user-select: text;
+}

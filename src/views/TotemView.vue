@@ -1,5 +1,10 @@
 <template>
-  <div class="relative min-h-screen overflow-hidden" :style="rootBgStyle" @pointerdown="handleRootTap">
+  <div
+    class="relative min-h-screen overflow-hidden"
+    :class="{ 'game-typo': stage === 'name' && selectedGame }"
+    :style="rootBgStyle"
+    @pointerdown="handleRootTap"
+  >
     <!-- botão invisível: 6 toques seguidos aqui voltam pra escolha de evento
          (saída de emergência caso o totem tenha ficado preso num evento errado) -->
     <button
@@ -19,7 +24,7 @@
       </div>
     </div>
 
-    <!-- modo atração/ranking manual: fotos e ranking em tela cheia -->
+    <!-- modo atração/ranking manual: ranking em tela cheia -->
     <div v-else-if="attractMode" class="fixed inset-0 z-10 overflow-hidden bg-ink">
       <button
         v-if="manualRankingView"
@@ -31,49 +36,35 @@
         <X :size="26" />
       </button>
 
-      <template v-if="currentAttractSlide">
-        <!-- tem foto salva: ocupa a tela quase inteira, com o nome/ranking por cima -->
-        <div v-if="currentAttractSlide.photoUrl" class="relative flex h-full w-full items-end justify-center">
-          <img :src="currentAttractSlide.photoUrl" alt="" class="absolute inset-0 h-full w-full object-cover" />
-          <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/10 to-black/30" />
-          <div class="relative z-10 flex w-full flex-col items-center px-6 pb-24 pt-10 text-center">
-            <span
-              v-if="currentAttractSlide.position"
-              class="mb-5 flex h-20 w-20 items-center justify-center rounded-full text-3xl font-bold text-white
-                shadow-xl sm:h-24 sm:w-24 sm:text-4xl"
-              :style="{ backgroundColor: attractPositionColor(currentAttractSlide.position) }"
-            >
-              {{ currentAttractSlide.position }}º
-            </span>
-            <p class="font-elegant text-6xl font-bold leading-none text-white drop-shadow-lg sm:text-8xl">
-              {{ currentAttractSlide.name }}
-            </p>
-            <p class="mt-5 text-2xl font-bold uppercase tracking-[0.25em] text-white/85 sm:text-3xl">
-              {{ currentAttractSlide.label }}
-              <template v-if="currentAttractSlide.score != null"> · {{ currentAttractSlide.score }} pts</template>
-            </p>
-          </div>
-        </div>
+      <RankingBoard
+        v-if="currentAttractSlide"
+        :slide="currentAttractSlide"
+        :appearance="selectedEvent?.appearance || {}"
+        :index="attractIndex"
+        :total="attractSlides.length"
+        :manual="Boolean(manualRankingView)"
+        :duration="attractDuration"
+        :cycle="attractCycle"
+        :tabs="attractTabs"
+        @select="selectAttractSlide"
+      />
 
-        <!-- sem foto: ranking bem grande em tela cheia -->
-        <div v-else class="relative flex h-full w-full flex-col items-center justify-center px-6 text-center" :style="attractRankBg">
-          <p class="text-xl font-bold uppercase tracking-[0.4em] text-white/70 sm:text-3xl">Ranking {{ currentAttractSlide.label }}</p>
-          <span
-            class="font-elegant mt-8 flex h-56 w-56 items-center justify-center rounded-full text-8xl font-bold
-              text-white shadow-2xl sm:h-72 sm:w-72 sm:text-9xl"
-            :style="{ backgroundColor: attractPositionColor(currentAttractSlide.position) }"
-          >
-            {{ currentAttractSlide.position }}º
-          </span>
-          <p class="font-elegant mt-10 text-6xl font-bold text-white sm:text-9xl">{{ currentAttractSlide.name }}</p>
-          <p class="mt-4 text-3xl font-bold text-white/85 sm:text-5xl">{{ currentAttractSlide.score }} pontos</p>
-        </div>
-      </template>
-
-      <p class="fixed inset-x-0 bottom-10 z-20 flex items-center justify-center gap-3 text-lg font-bold uppercase
-        tracking-[0.3em] text-white/80 sm:text-xl">
+      <p
+        v-if="!manualRankingView"
+        class="fixed inset-x-0 bottom-8 z-20 mx-auto flex w-max items-center justify-center gap-3 rounded-full bg-black/40 px-7 py-3.5
+          text-lg font-bold uppercase tracking-[0.25em] text-white backdrop-blur sm:text-xl"
+      >
         <Sparkles :size="24" /> Toque na tela pra jogar
       </p>
+      <button
+        v-else
+        type="button"
+        class="fixed inset-x-0 bottom-8 z-20 mx-auto flex w-max items-center gap-3 rounded-full bg-black/45 px-8 py-4 text-xl font-bold
+          text-white backdrop-blur transition-colors hover:bg-black/60"
+        @click="exitAttract"
+      >
+        <ArrowLeft :size="24" /> Voltar aos jogos
+      </button>
     </div>
 
     <template v-else>
@@ -89,6 +80,12 @@
             v-model="totemPasswordInput"
             type="password"
             placeholder="Senha do totem"
+            name="totem-pass-totem"
+            readonly
+            data-osk="1"
+            autocomplete="new-password"
+            data-lpignore="true"
+            data-1p-ignore="true"
             required
             autofocus
             class="w-full rounded-2xl border-2 border-ink/10 bg-white px-8 py-6 text-center text-2xl font-bold
@@ -117,6 +114,12 @@
             v-model="eventPasswordInput"
             type="password"
             placeholder="Senha do evento"
+            name="totem-pass-evento"
+            readonly
+            data-osk="1"
+            autocomplete="new-password"
+            data-lpignore="true"
+            data-1p-ignore="true"
             required
             autofocus
             class="w-full rounded-2xl border-2 border-ink/10 bg-white px-8 py-6 text-center text-2xl font-bold
@@ -171,61 +174,15 @@
         </div>
       </div>
 
-      <!-- painel de boas-vindas: todos os jogos do evento -->
-      <div v-else-if="stage === 'welcome'" class="relative z-10 flex min-h-screen flex-col items-center px-6 py-16 text-center">
-        <h1 class="font-elegant text-7xl font-bold leading-[0.95] sm:text-9xl mt-5">{{ selectedEvent?.event_name }}</h1>
-        <p class="mt-10 text-3xl text-ink-muted sm:text-5xl">Escolha um jogo pra começar</p>
-        <div class="mt-8 flex items-center gap-4">
-          <span class="h-px w-28 bg-gradient-to-r from-transparent to-ink/20" />
-          <span class="h-3.5 w-3.5 rotate-45 bg-primary" />
-          <span class="h-px w-28 bg-gradient-to-l from-transparent to-ink/20" />
-        </div>
-
-        <div class="mt-8 flex flex-wrap items-center justify-center gap-4">
-          <button
-            type="button"
-            class="inline-flex items-center gap-2 rounded-full border-2 border-ink/15 bg-white px-6 py-3 text-base
-              font-bold text-ink shadow-sm transition-colors hover:border-primary sm:text-lg"
-            @click="openManualRanking('overall')"
-          >
-            <Trophy :size="20" /> Ranking geral
-          </button>
-          <button
-            type="button"
-            class="inline-flex items-center gap-2 rounded-full border-2 border-ink/15 bg-white px-6 py-3 text-base
-              font-bold text-ink shadow-sm transition-colors hover:border-primary sm:text-lg"
-            @click="openManualRanking('games')"
-          >
-            <Medal :size="20" /> Ranking por jogo
-          </button>
-        </div>
-
-        <p v-if="!selectedEvent?.games?.length" class="mt-16 text-3xl text-ink-soft">
-          Nenhum jogo disponível neste evento ainda.
-        </p>
-        <div v-else class="mt-16 flex w-full max-w-4xl flex-col gap-7">
-          <button
-            v-for="game in selectedEvent.games"
-            :key="game.id"
-            class="flex items-center gap-8 rounded-[2.5rem] border border-ink/10 bg-white px-10 py-9 text-left
-              shadow-lg transition-all hover:-translate-y-1 hover:shadow-2xl active:scale-[0.98] sm:px-14 sm:py-11"
-            @click="pickGame(game)"
-          >
-            <span
-              class="flex h-24 w-24 shrink-0 items-center justify-center rounded-full text-white shadow-md
-                sm:h-32 sm:w-32"
-              :style="{ backgroundColor: game.config?.primary_color || '#10939b' }"
-            >
-              <Gamepad2 :size="52" />
-            </span>
-            <div class="min-w-0 flex-1">
-              <p class="font-elegant truncate text-4xl font-bold text-ink sm:text-6xl">{{ game.title }}</p>
-              <span class="badge mt-3 !px-4 !py-1.5 !text-sm sm:!text-base">{{ game.game.name }}</span>
-            </div>
-            <ChevronRight :size="40" class="shrink-0 text-ink-soft" />
-          </button>
-        </div>
-      </div>
+      <!-- painel de boas-vindas: todos os jogos do evento (visual definido por evento no painel) -->
+      <EventWelcome
+        v-else-if="stage === 'welcome'"
+        :event-name="selectedEvent?.event_name || ''"
+        :games="selectedEvent?.games || []"
+        :appearance="selectedEvent?.appearance || {}"
+        @pick="pickGame"
+        @ranking="openManualRanking"
+      />
 
       <!-- quem vai jogar agora — segue a personalização do jogo escolhido -->
       <div v-else-if="stage === 'name'" class="relative z-10 flex min-h-screen flex-col items-center justify-center px-6 text-center">
@@ -235,10 +192,12 @@
         >
           <User :size="40" :style="{ color: gameAccentColor }" />
         </div>
-        <h1 class="font-elegant mt-8 text-5xl font-bold sm:text-7xl" :style="gameHudTextStyle">{{ selectedGame?.title }}</h1>
-        <p class="mt-5 text-2xl sm:text-3xl" :style="gameHudSubTextStyle">Quem vai jogar agora?</p>
+        <h1 class="font-elegant mt-8 text-5xl font-bold sm:text-7xl" :style="gameHudTextStyle"><HighlightedText :text="selectedGame?.title || ''" :color="gameAccentColor" /></h1>
+        <p class="mt-5 text-2xl sm:text-3xl" :style="gameHudSubTextStyle">
+          {{ captureLeads ? 'Preencha seus dados pra jogar' : 'Quem vai jogar agora?' }}
+        </p>
 
-        <div v-if="knownNames.length" class="mt-10 flex w-full max-w-3xl flex-wrap items-center justify-center gap-4">
+        <div v-if="knownNames.length && !captureLeads" class="mt-10 flex w-full max-w-3xl flex-wrap items-center justify-center gap-4">
           <button
             v-for="name in knownNames"
             :key="name"
@@ -255,17 +214,33 @@
 
         <form class="mt-12 flex w-full max-w-xl flex-col items-center gap-5" @submit.prevent="submitNewName">
           <input
+            v-if="!captureLeads"
             v-model="playerName"
             type="text"
             placeholder="Ou digite um nome novo"
             maxlength="60"
             required
-            class="w-full rounded-2xl border-2 px-8 py-7 text-center text-3xl font-bold shadow-sm outline-none
-              transition-colors"
+            name="totem-nome"
+            readonly
+            data-osk="1"
+            autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-form-type="other"
+            class="w-full rounded-2xl border-2 px-8 py-6 text-center text-2xl font-bold shadow-sm outline-none
+              transition-colors sm:text-3xl"
             :class="gameIsDarkTheme
               ? 'border-white/20 bg-white/10 text-white placeholder:text-white/50 focus:border-white/50'
               : 'border-ink/10 bg-white text-ink focus:border-primary'"
           />
+          <LeadFields
+            v-else
+            :name="playerName"
+            :lead="leadForm"
+            :dark="gameIsDarkTheme"
+            :accent="gameAccentColor"
+            kiosk
+            @update:name="playerName = $event"
+            @update:lead="Object.assign(leadForm, $event)"
+          />
+          <p v-if="leadError" class="text-base font-bold text-danger">{{ leadError }}</p>
           <button
             type="submit"
             class="rounded-2xl px-20 py-8 text-3xl font-bold text-white shadow-xl transition-transform
@@ -298,7 +273,9 @@
       :title="selectedGame.title"
       :config="selectedGame.config"
       :top-inset="0"
+      v-bind="gameDef.wantsPublicToken ? { publicToken: selectedGame.public_token } : {}"
       @finished="handleFinished"
+      @busy="setGameBusy"
       @restarted="handleGameRestarted"
       @back-to-start="handleBackToStart"
     />
@@ -306,7 +283,7 @@
     <!-- barra flutuante com as ações extra do totem: só aparece por cima da
          própria tela final do jogo, sem substituir nada dela -->
     <div
-      v-if="showPostPlayActions && stage === 'playing' && finishResult"
+      v-if="showPostPlayActions && stage === 'playing' && finishResult && !ownsRanking"
       class="fixed inset-x-0 bottom-0 z-40 flex justify-center p-4 sm:p-6"
     >
       <div class="flex w-full max-w-xl flex-col gap-3 rounded-3xl bg-white/95 p-4 shadow-2xl backdrop-blur sm:p-5">
@@ -318,21 +295,6 @@
         >
           <Trophy :size="22" /> {{ finishResult?.label ? 'Ver histórico' : 'Ver ranking' }}
         </button>
-        <template v-if="!photoQr">
-          <button
-            v-if="finishResult?.playId"
-            type="button"
-            class="inline-flex items-center justify-center gap-3 rounded-2xl border-2 border-ink/15 px-8 py-4
-              text-xl font-bold text-ink transition-transform active:scale-95"
-            @click="requestPhoto"
-          >
-            <Camera :size="22" /> Salvar foto pra o recap
-          </button>
-        </template>
-        <div v-else class="rounded-2xl border border-ink/10 p-4 text-center">
-          <img :src="photoQr" alt="QR code" class="mx-auto h-40 w-40" />
-          <p class="mt-2 text-sm font-bold text-ink">Escaneie com a câmera do celular pra tirar sua foto</p>
-        </div>
       </div>
     </div>
 
@@ -459,22 +421,29 @@
         </button>
       </div>
     </div>
+  
+    <!-- teclado na tela (o totem não tem teclado físico) -->
+    <OnScreenKeyboard />
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
-import QRCode from 'qrcode'
-import { Gamepad2, Camera, CalendarClock, ChevronRight, User, Trophy, Sparkles, Lock, Medal, X } from '@lucide/vue'
+import { Gamepad2, ArrowLeft, CalendarClock, ChevronRight, User, Trophy, Sparkles, Lock, Medal, X } from '@lucide/vue'
+import HighlightedText from '@/components/HighlightedText.vue'
 import api from '@/services/api'
+import { uploadKaraokeRecording } from '@/services/karaoke'
+import EventWelcome from '@/components/EventWelcome.vue'
+import RankingBoard from '@/components/RankingBoard.vue'
+import OnScreenKeyboard from '@/components/OnScreenKeyboard.vue'
+import LeadFields from '@/components/LeadFields.vue'
 import { getGameDefinition } from '@/games/registry'
 import { useGameTheme } from '@/composables/useGameTheme'
 import { useGameSounds } from '@/composables/useGameSounds'
 
 const IDLE_MS = 45000
 const HARD_RESET_MS = 90000
-const ATTRACT_CYCLE_MS = 5000
 
 const route = useRoute()
 const loading = ref(true)
@@ -490,9 +459,18 @@ const eventPasswordInput = ref('')
 const eventPasswordError = ref('')
 const playerName = ref('')
 const knownNames = ref([])
+const leadForm = reactive({ email: '', phone: '', instagram: '' })
+const leadError = ref('')
+const captureLeads = computed(() => Boolean(selectedGame.value?.config?.capture_leads))
+
+function resetLeadForm() {
+  leadForm.email = ''
+  leadForm.phone = ''
+  leadForm.instagram = ''
+  leadError.value = ''
+}
 const roundKey = ref(0)
 const finishResult = ref(null)
-const photoQr = ref('')
 
 const attractMode = ref(false)
 const attractSlides = ref([])
@@ -501,20 +479,23 @@ const manualRankingView = ref(null) // null | 'overall' | 'games' — ranking ab
 let idleTimer = null
 let attractCycleTimer = null
 
-const attractRankBg = {
-  background: 'radial-gradient(circle at 30% 20%, #17a6ae 0%, #0b3a3e 55%, #05181a 100%)',
-}
-
-// 1º/2º/3º ganham a cor de medalha; do resto pra baixo usa a cor da marca.
-function attractPositionColor(position) {
-  if (position === 1) return '#f4b400'
-  if (position === 2) return '#9ca3af'
-  if (position === 3) return '#b45309'
-  return '#10939b'
-}
+const attractCycle = ref(0)
+let manualTimer = null
 
 const gameDef = computed(() => (selectedGame.value ? getGameDefinition(selectedGame.value.game.slug) : null))
+// jogos com ranking próprio (karaokê, acerte o tempo) não mostram a barra "Ver ranking" pós-jogo
+const ownsRanking = computed(() => Boolean(gameDef.value?.ownsRanking) || selectedGame.value?.game?.slug === 'karaoke')
 const currentAttractSlide = computed(() => attractSlides.value[attractIndex.value] || null)
+
+// Quanto tempo cada ranking fica na tela: o suficiente pra ler (e rolar, se a tabela for longa).
+function durationFor(slide) {
+  const rows = slide?.rows?.length || 0
+  return Math.min(60000, Math.max(8000, 7000 + Math.max(0, rows - 8) * 1400))
+}
+const attractDuration = computed(() => durationFor(currentAttractSlide.value))
+const attractTabs = computed(() =>
+  attractSlides.value.map((slide, index) => ({ index, title: slide.kind === 'overall' ? 'Geral' : slide.title }))
+)
 
 // As telas de "quem vai jogar" e "pós-jogo" pertencem à experiência daquele
 // jogo específico, então seguem a MESMA personalização (fundo, cor, tema)
@@ -715,9 +696,19 @@ async function loadNames() {
   }
 }
 
+function rememberName(name) {
+  const trimmed = capitalizeName(name || '')
+  if (!trimmed) return
+  const key = trimmed.toLowerCase()
+  if (knownNames.value.some((n) => n.trim().toLowerCase() === key)) return
+  knownNames.value = [trimmed, ...knownNames.value]
+}
+
 function pickGame(game) {
   selectedGame.value = game
+  gameBusy.value = false
   playerName.value = ''
+  resetLeadForm()
   stage.value = 'name'
   registerActivity()
 }
@@ -739,6 +730,11 @@ function capitalizeName(name) {
 function submitNewName() {
   const trimmed = playerName.value.trim()
   if (!trimmed) return
+  if (captureLeads.value && leadForm.phone.replace(/\D/g, '').length < 10) {
+    leadError.value = 'Informe um telefone válido, com DDD.'
+    return
+  }
+  leadError.value = ''
   playerName.value = capitalizeName(trimmed)
   beginPlay()
 }
@@ -749,19 +745,12 @@ function beginPlay() {
   registerActivity()
 }
 
-// O jogo (dentro do próprio "Jogar novamente"/"Voltar ao início" nativo dele)
-// avisa quando sai da tela final — sem isso, a barrinha de ações e qualquer
-// overlay aberto (ranking/histórico) ficavam presos em cima da tela inicial
-// do jogo depois de reiniciar, mostrando dados da partida anterior.
+// "Jogar novamente" (o botão nativo do jogo): no totem, quem joga de novo pode ser outra pessoa,
+// então volta pra escolha de quem vai jogar (mesmo caminho do "Voltar ao início"). O jogo é
+// desmontado ao sair do estágio "playing", então nada da partida anterior fica pra trás
+// (barra de ações, rankings abertos, resultado).
 function handleGameRestarted() {
-  stopRankingPoll()
-  stopHistoryPoll()
-  stopRankingAnimations()
-  clearTimeout(postPlayActionsTimer)
-  showPostPlayActions.value = false
-  finishResult.value = null
-  photoQr.value = ''
-  if (stage.value !== 'playing') stage.value = 'playing'
+  handleBackToStart()
 }
 
 // "Voltar ao início" (o botão nativo do jogo) não fica só na marca do jogo —
@@ -774,8 +763,8 @@ function handleBackToStart() {
   clearTimeout(postPlayActionsTimer)
   showPostPlayActions.value = false
   finishResult.value = null
-  photoQr.value = ''
   playerName.value = ''
+  resetLeadForm()
   stage.value = 'name'
   registerActivity()
 }
@@ -785,7 +774,13 @@ async function handleFinished(payload) {
   try {
     const metadata = payload?.label
       ? { prize: payload.label, outcome_type: payload.outcomeType }
-      : payload?.won !== null && payload?.won !== undefined
+      : payload?.timing
+        ? { target: payload.timing.target, stopped: payload.timing.stopped, diff: payload.timing.diff }
+      : payload?.run
+        ? { cleared: payload.run.cleared, precision: payload.run.precision, misses: payload.run.misses }
+        : payload?.song
+        ? { song: payload.song.title, song_id: payload.song.id }
+        : payload?.won !== null && payload?.won !== undefined
         ? { won: payload.won }
         : null
 
@@ -793,12 +788,22 @@ async function handleFinished(payload) {
       player_name: playerName.value.trim(),
       score: payload?.score ?? null,
       metadata,
+      lead: captureLeads.value ? { ...leadForm } : undefined,
       client_uuid: crypto.randomUUID(),
     })
     response = data
   } catch (err) {
     response = null
   }
+
+  if (payload?.recording && response?.recording_token) {
+    uploadKaraokeRecording(selectedGame.value.public_token, response.id, response.recording_token, payload.recording).catch(() => {})
+  }
+
+  // Atualiza a lista de nomes já agora — senão o nome recém-usado só aparece
+  // em "Quem vai jogar agora?" depois de sair pro painel e entrar de novo.
+  rememberName(playerName.value)
+  loadNames()
 
   finishResult.value = {
     ...payload,
@@ -807,11 +812,10 @@ async function handleFinished(payload) {
     position: response?.ranking_position ?? null,
     ranking: response?.ranking ?? [],
   }
-  photoQr.value = ''
 
   // o jogo continua montado mostrando a própria tela final dele (a mesma de
-  // sempre); só depois de um respiro aparece a barrinha com "salvar
-  // foto"/"ver ranking" flutuando por cima, sem competir com a mensagem.
+  // sempre); só depois de um respiro aparece a barrinha com "ver
+  // ranking" flutuando por cima, sem competir com a mensagem.
   showPostPlayActions.value = false
   clearTimeout(postPlayActionsTimer)
   postPlayActionsTimer = setTimeout(() => {
@@ -980,17 +984,6 @@ function closeOverlay() {
   registerActivity()
 }
 
-async function requestPhoto() {
-  if (!finishResult.value?.playId) return
-  try {
-    const { data } = await api.post(`/plays/${finishResult.value.playId}/photo-token`)
-    const url = `${window.location.origin}${data.photo_path}`
-    photoQr.value = await QRCode.toDataURL(url, { margin: 1, width: 320 })
-  } catch (err) {
-    // silencioso
-  }
-}
-
 function backToWelcome() {
   stopRankingPoll()
   stopHistoryPoll()
@@ -1000,7 +993,6 @@ function backToWelcome() {
   finishResult.value = null
   selectedGame.value = null
   playerName.value = ''
-  photoQr.value = ''
   stage.value = 'welcome'
   loadNames()
   registerActivity()
@@ -1010,9 +1002,20 @@ function backToWelcome() {
 // vira modo atração; abandonado em qualquer outra tela (nome, meio de um
 // jogo, pós-jogo) volta sozinho pro painel depois de um tempo maior — o
 // totem não pode ficar travado esperando alguém que já foi embora.
+// Jogo avisa que está ocupado (ex: karaokê cantando ou tocando uma gravação):
+// enquanto isso o totem não reseta nem entra em modo atração por inatividade.
+const gameBusy = ref(false)
+
+function setGameBusy(busy) {
+  gameBusy.value = busy
+  if (busy) clearIdleTimer()
+  else registerActivity()
+}
+
 function registerActivity() {
   clearIdleTimer()
   if (attractMode.value) return
+  if (gameBusy.value && selectedGame.value && ['playing', 'post-game', 'history'].includes(stage.value)) return
   if (stage.value === 'totem-password' || stage.value === 'event-password') return
 
   if (stage.value === 'welcome' || stage.value === 'choose-event') {
@@ -1027,64 +1030,80 @@ function clearIdleTimer() {
   idleTimer = null
 }
 
-// Ranking geral primeiro, depois o de cada jogo separado — quando o jogador
-// tem foto salva (do jogo daquela posição, ou de qualquer jogo pro geral),
-// ela entra junto no mesmo slide. O que sobrar de foto (jogos sem pontuação,
-// como a roleta) vira slide só de foto no final.
-function buildAttractSlides(data) {
-  const photos = data.photos || []
-  const usedPhotoUrls = new Set()
-
-  const photoFor = (name, gameName) => {
-    const target = (name || '').trim().toLowerCase()
-    const photo = photos.find((p) => {
-      if (usedPhotoUrls.has(p.photo_url)) return false
-      const sameName = (p.player_name || '').trim().toLowerCase() === target
-      const sameGame = !gameName || p.game_name === gameName
-      return sameName && sameGame
-    })
-    if (photo) usedPhotoUrls.add(photo.photo_url)
-    return photo
-  }
-
-  const overallSlides = (data.overall_ranking || []).slice(0, 5).map((r, i) => ({
-    label: 'Geral',
-    name: r.name,
-    score: r.score,
-    position: i + 1,
-    photoUrl: photoFor(r.name)?.photo_url || null,
-  }))
-
-  const gameSlides = (data.rankings_by_game || []).flatMap((game) =>
-    (game.ranking || []).slice(0, 5).map((r, i) => ({
-      label: game.game_name,
-      name: r.name,
-      score: r.score,
-      position: i + 1,
-      photoUrl: photoFor(r.name, game.game_name)?.photo_url || null,
-    }))
-  )
-
-  const leftoverPhotoSlides = photos
-    .filter((p) => !usedPhotoUrls.has(p.photo_url))
-    .map((p) => ({
-      label: p.game_name,
-      name: p.player_name,
-      score: null,
-      position: p.ranking_position || null,
-      photoUrl: p.photo_url,
-    }))
-
-  return [...overallSlides, ...gameSlides, ...leftoverPhotoSlides]
+// Posição com empate: pontuações iguais dividem a mesma posição (1, 1, 3...).
+function rowsOf(list) {
+  let position = 0
+  return list.map((entry, i) => {
+    if (i === 0 || entry.score !== list[i - 1].score) position = i + 1
+    return { position, name: entry.name, score: entry.score, song: entry.song || '', scoreText: entry.display || '' }
+  })
 }
 
-function startAttractCycle(slides) {
+// Uma tabela completa por ranking: o geral primeiro, depois um por jogo.
+function buildAttractSlides(data) {
+  const slides = []
+
+  const overall = data.overall_ranking || []
+  if (overall.length) {
+    slides.push({
+      kind: 'overall',
+      eyebrow: 'Ranking',
+      title: 'Ranking geral',
+      subtitle: 'Pontos somados de todos os jogos',
+      showSong: false,
+      rows: rowsOf(overall),
+    })
+  }
+
+  for (const game of data.rankings_by_game || []) {
+    const rows = rowsOf(game.ranking || [])
+    if (!rows.length) continue
+    const timing = game.kind === 'timing'
+    const target = game.kind === 'target'
+    slides.push({
+      kind: 'game',
+      eyebrow: 'Ranking por jogo',
+      title: String(game.game_name || '').replace(/\*\*/g, ''),
+      subtitle: timing ? 'Quem chegou mais perto do tempo sorteado' : target ? 'Quem passou mais níveis' : '',
+      showSong: rows.some((r) => r.song),
+      detailLabel: timing ? 'Alvo → parou' : target ? 'Precisão' : 'Música',
+      scoreLabel: timing ? 'Diferença' : target ? 'Níveis' : 'Pontos',
+      rows,
+    })
+  }
+
+  return slides
+}
+
+function scheduleAttractAdvance() {
+  clearTimeout(attractCycleTimer)
+  attractCycleTimer = setTimeout(() => {
+    if (attractSlides.value.length > 1) {
+      attractIndex.value = (attractIndex.value + 1) % attractSlides.value.length
+    }
+    attractCycle.value += 1
+    scheduleAttractAdvance()
+  }, attractDuration.value)
+}
+
+function startAttractCycle(slides, manual = false) {
   attractSlides.value = slides
   attractIndex.value = 0
+  attractCycle.value = 0
   attractMode.value = true
-  attractCycleTimer = setInterval(() => {
-    attractIndex.value = (attractIndex.value + 1) % attractSlides.value.length
-  }, ATTRACT_CYCLE_MS)
+  // aberto pelo botão: quem escolhe o ranking é a pessoa (abas), não troca sozinho
+  if (!manual) scheduleAttractAdvance()
+}
+
+// Ranking aberto pelo botão volta sozinho pros jogos se ninguém mexer por um tempo.
+function armManualTimer() {
+  clearTimeout(manualTimer)
+  manualTimer = setTimeout(exitAttract, 90000)
+}
+
+function selectAttractSlide(index) {
+  attractIndex.value = index
+  armManualTimer()
 }
 
 async function enterAttract() {
@@ -1106,13 +1125,14 @@ async function openManualRanking(kind) {
   clearIdleTimer()
   try {
     const { data } = await api.get(`/totem/${route.params.token}/events/${selectedEvent.value.event_id}/attract`)
-    const slides = buildAttractSlides(data).filter((s) => (kind === 'overall' ? s.label === 'Geral' : s.label !== 'Geral'))
+    const slides = buildAttractSlides(data).filter((s) => (kind === 'overall' ? s.kind === 'overall' : s.kind === 'game'))
     if (!slides.length) {
       registerActivity()
       return
     }
     manualRankingView.value = kind
-    startAttractCycle(slides)
+    startAttractCycle(slides, true)
+    armManualTimer()
   } catch (err) {
     registerActivity()
   }
@@ -1121,14 +1141,17 @@ async function openManualRanking(kind) {
 function exitAttract() {
   attractMode.value = false
   manualRankingView.value = null
-  if (attractCycleTimer) clearInterval(attractCycleTimer)
+  clearTimeout(manualTimer)
+  if (attractCycleTimer) clearTimeout(attractCycleTimer)
   attractCycleTimer = null
   registerActivity()
 }
 
 function handleRootTap() {
   if (attractMode.value) {
-    exitAttract()
+    // ranking aberto pelo botão: tocar/rolar a tabela não fecha (só o botão de voltar)
+    if (manualRankingView.value) armManualTimer()
+    else exitAttract()
     return
   }
   registerActivity()
@@ -1159,7 +1182,7 @@ function handleSecretTap() {
 // totem já validada, só esquece qual evento estava selecionado.
 function resetToChooseEvent() {
   clearIdleTimer()
-  if (attractCycleTimer) clearInterval(attractCycleTimer)
+  if (attractCycleTimer) clearTimeout(attractCycleTimer)
   attractCycleTimer = null
   attractMode.value = false
   stopRankingPoll()
@@ -1171,7 +1194,6 @@ function resetToChooseEvent() {
   finishResult.value = null
   selectedGame.value = null
   playerName.value = ''
-  photoQr.value = ''
   eventPasswordInput.value = ''
   eventPasswordError.value = ''
   setStored('selected_event_id', null)
@@ -1185,12 +1207,29 @@ function resetToChooseEvent() {
   }
 }
 
-onMounted(load)
+// Totem touch: o toque longo na tela abre o menu de clique direito do Chrome (Voltar, Imprimir,
+// Inspecionar...) e seleciona texto. Aqui nada disso faz sentido, então bloqueamos.
+const blockNativeMenu = (e) => e.preventDefault()
+const blockSelection = (e) => {
+  if (!e.target?.closest?.('input, textarea')) e.preventDefault()
+}
+
+onMounted(() => {
+  document.documentElement.classList.add('kiosk')
+  document.addEventListener('contextmenu', blockNativeMenu, true)
+  document.addEventListener('dragstart', blockNativeMenu, true)
+  document.addEventListener('selectstart', blockSelection, true)
+  load()
+})
 onUnmounted(() => {
+  document.documentElement.classList.remove('kiosk')
+  document.removeEventListener('contextmenu', blockNativeMenu, true)
+  document.removeEventListener('dragstart', blockNativeMenu, true)
+  document.removeEventListener('selectstart', blockSelection, true)
   clearIdleTimer()
   clearTimeout(secretTapTimer)
   clearTimeout(postPlayActionsTimer)
-  if (attractCycleTimer) clearInterval(attractCycleTimer)
+  if (attractCycleTimer) clearTimeout(attractCycleTimer)
   stopRankingAnimations()
   stopRankingPoll()
   stopHistoryPoll()

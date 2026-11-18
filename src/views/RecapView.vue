@@ -69,7 +69,7 @@
 
       <div class="pointer-events-none relative z-30 flex h-full flex-col items-center justify-center px-6 py-16 text-center sm:px-16">
         <Transition name="slide-fade" mode="out-in">
-          <div :key="step" class="flex w-full flex-col items-center" :class="currentSlide.type === 'gallery' ? 'max-w-none' : 'max-w-2xl'">
+          <div :key="step" class="flex w-full flex-col items-center" :class="'max-w-2xl'">
             <template v-if="currentSlide.type === 'intro'">
               <section class="recap-intro">
                 <div class="recap-orb recap-orb--one"></div>
@@ -90,7 +90,7 @@
                   </h1>
 
                   <p class="recap-intro__description">
-                    Os momentos, as fotos e as surpresas que fizeram essa festa acontecer.
+                    Os momentos e as surpresas que fizeram essa festa acontecer.
                   </p>
 
                   <button
@@ -138,38 +138,50 @@
 
             <template v-else-if="currentSlide.type === 'ranking'">
               <section class="ranking-slide">
-                <p class="ranking-slide__eyebrow">✳ OS FAVORITOS DA FESTA</p>
-                <h2 class="ranking-slide__title">{{ currentSlide.title }}</h2>
+                <p class="ranking-slide__eyebrow rk-fade" style="--d: 0ms">{{ currentSlide.eyebrow || '✳ OS FAVORITOS DA FESTA' }}</p>
+                <h2 class="ranking-slide__title rk-fade" style="--d: 120ms">{{ currentSlide.title }}</h2>
 
-                <!-- Vencedor -->
-                <div v-if="currentSlide.items.length" class="ranking-winner">
-                  <div class="ranking-winner__top">
-                    <span>O CAMPEÃO DA NOITE</span>
-                    <span>01 / {{ String(currentSlide.items.length).padStart(2, '0') }}</span>
+                <!-- Vencedor: entra por último, com tudo -->
+                <div v-if="currentSlide.items.length" class="ranking-winner-wrap">
+                  <div class="ranking-winner" :class="{ 'is-in': winnerShown }">
+                    <span class="winner-shine" aria-hidden="true" />
+
+                    <div class="ranking-winner__top">
+                      <span>{{ currentSlide.championLabel || 'O CAMPEÃO DA NOITE' }}</span>
+                      <span>01 / {{ String(currentSlide.items.length).padStart(2, '0') }}</span>
+                    </div>
+
+                    <div class="ranking-winner__body">
+                      <span class="winner-crown" aria-hidden="true"><Crown :size="34" /></span>
+                      <span class="ranking-winner__position">#1</span>
+                      <p class="ranking-winner__name" :aria-label="currentSlide.items[0].name">
+                        <span v-for="(word, w) in winnerWords" :key="w" class="rk-word" aria-hidden="true">
+                          <span v-for="(ch, c) in word.chars" :key="c" class="rk-char" :style="{ '--i': word.start + c }">{{ ch }}</span>
+                        </span>
+                      </p>
+                    </div>
+
+                    <div class="ranking-winner__bottom">
+                      <span>{{ currentSlide.items[0].detail }}</span>
+                      <strong><CountUpText :text="currentSlide.items[0].value" :active="winnerShown" :duration="1500" :delay="450" /></strong>
+                    </div>
                   </div>
 
-                  <div class="ranking-winner__body">
-                    <span class="ranking-winner__position">#1</span>
-                    <p class="ranking-winner__name">
-                      {{ currentSlide.items[0].name }}
-                    </p>
-                  </div>
-
-                  <div class="ranking-winner__bottom">
-                    <span>{{ currentSlide.items[0].detail }}</span>
-                    <strong>{{ currentSlide.items[0].value }}</strong>
+                  <!-- confete -->
+                  <div v-if="confetti.length" class="confetti" aria-hidden="true">
+                    <i v-for="(piece, i) in confetti" :key="i" class="confetti__piece" :style="piece" />
                   </div>
                 </div>
 
-                <!-- Demais posições -->
+                <!-- Demais posições: sobem de baixo pra cima, criando suspense -->
                 <div v-if="currentSlide.items.length > 1" class="ranking-rest">
-                  <p class="ranking-rest__label">O RESTO DO PÓDIO</p>
+                  <p class="ranking-rest__label rk-fade" style="--d: 260ms">O RESTO DO PÓDIO</p>
 
                   <div
                     v-for="(item, i) in currentSlide.items.slice(1)"
                     :key="i"
-                    class="ranking-rest__item rank-item"
-                    :style="{ animationDelay: `${(i + 1) * 90}ms` }"
+                    class="ranking-rest__item"
+                    :class="{ 'is-in': isRestShown(i) }"
                   >
                     <span class="ranking-rest__position">
                       {{ String(i + 2).padStart(2, '0') }}
@@ -180,25 +192,63 @@
                       <span>{{ item.detail }}</span>
                     </div>
 
-                    <strong class="ranking-rest__value">{{ item.value }}</strong>
+                    <strong class="ranking-rest__value">
+                      <CountUpText :text="item.value" :active="isRestShown(i)" :duration="900" :delay="250" />
+                    </strong>
                   </div>
                 </div>
               </section>
             </template>
 
-            <template v-else-if="currentSlide.type === 'gallery'">
-              <section class="gallery-full">
-                <img
-                  class="gallery-full__image"
-                  :src="currentSlide.photo.photo_url"
-                  :alt="`Foto de ${currentSlide.photo.player_name}`"
-                />
+            <template v-else-if="currentSlide.type === 'karaokeBest'">
+              <section class="ranking-slide">
+                <p class="ranking-slide__eyebrow rk-fade" style="--d: 0ms">✳ NO KARAOKÊ</p>
+                <h2 class="ranking-slide__title rk-fade" style="--d: 120ms">A maior nota da noite</h2>
 
-                <div class="gallery-full__shade"></div>
+                <div class="ranking-winner-wrap">
+                  <div class="ranking-winner is-in">
+                    <span class="winner-shine" aria-hidden="true" />
 
-                <h2 class="gallery-full__name">
-                  {{ currentSlide.photo.player_name }}
-                </h2>
+                    <div class="ranking-winner__top">
+                      <span>NOTA MÁXIMA EM UMA APRESENTAÇÃO</span>
+                      <span>1000 pts</span>
+                    </div>
+
+                    <div class="ranking-winner__body">
+                      <span class="winner-crown" aria-hidden="true"><Crown :size="34" /></span>
+                      <span class="ranking-winner__position">🎤</span>
+                      <p class="ranking-winner__name" :aria-label="currentSlide.best.player_name">
+                        <span v-for="(word, w) in winnerWords" :key="w" class="rk-word" aria-hidden="true">
+                          <span v-for="(ch, c) in word.chars" :key="c" class="rk-char" :style="{ '--i': word.start + c }">{{ ch }}</span>
+                        </span>
+                      </p>
+                    </div>
+
+                    <div class="ranking-winner__bottom">
+                      <span>{{ currentSlide.best.song }}</span>
+                      <strong><CountUpText :text="`${currentSlide.best.score} pts`" active :duration="1800" :delay="500" /></strong>
+                    </div>
+                  </div>
+
+                  <div v-if="confetti.length" class="confetti" aria-hidden="true">
+                    <i v-for="(piece, i) in confetti" :key="i" class="confetti__piece" :style="piece" />
+                  </div>
+                </div>
+
+                <!-- trecho da gravação -->
+                <div v-if="currentSlide.best.recording_url" class="kbest-player rk-fade" style="--d: 900ms">
+                  <div class="kbest-bars" :class="{ 'is-playing': snippetPlaying }" aria-hidden="true">
+                    <i v-for="n in 26" :key="n" :style="{ animationDelay: `${(n * 83) % 700}ms`, animationDuration: `${620 + ((n * 137) % 520)}ms` }" />
+                  </div>
+                  <div class="kbest-player__row">
+                    <span class="kbest-player__label">{{ snippetPlaying ? 'Ouvindo um trecho da apresentação...' : 'Ouça um trecho da apresentação' }}</span>
+                    <button type="button" class="kbest-player__btn pointer-events-auto" @click.stop="playBestSnippet">
+                      <Play v-if="!snippetPlaying" :size="15" /> <Pause v-else :size="15" />
+                      {{ snippetPlaying ? 'Parar' : 'Ouvir' }}
+                    </button>
+                  </div>
+                </div>
+                <p v-else class="kbest-player__none rk-fade" style="--d: 900ms">A gravação desta apresentação não foi salva.</p>
               </section>
             </template>
 
@@ -216,20 +266,92 @@
                     <span class="recap-final__accent">em números.</span>
                   </div>
 
-                  <div class="recap-final__stats">
-                    <div>
-                      <strong>{{ recap.data?.total_jogadas ?? 0 }}</strong>
-                      <span>JOGADAS</span>
-                    </div>
-                    <div>
-                      <strong>{{ recap.data?.total_jogadores ?? 0 }}</strong>
-                      <span>JOGADORES</span>
+                  <p v-if="summary.dateLine" class="recap-final__date">{{ summary.dateLine }}</p>
+
+                  <div class="recap-final__stats recap-final__stats--four">
+                    <div v-for="stat in summary.stats" :key="stat.label">
+                      <strong>{{ stat.value }}</strong>
+                      <span>{{ stat.label }}</span>
                     </div>
                   </div>
 
-                  <p class="recap-final__summary">
-                    {{ currentSlide.text }}
-                  </p>
+                  <div class="fs-grid">
+                    <div v-if="summary.favorite" class="fs-card fs-card--lime fs-span">
+                      <small>O JOGO FAVORITO DA FESTA</small>
+                      <strong>{{ summary.favorite.name }}</strong>
+                      <span>{{ summary.favorite.value }}</span>
+                    </div>
+                    <div v-if="summary.bestScore" class="fs-card">
+                      <small>MAIOR PONTUAÇÃO EM UMA PARTIDA</small>
+                      <strong>{{ summary.bestScore.player_name }}</strong>
+                      <span>{{ summary.bestScore.score }} pts · {{ summary.bestScore.game }}</span>
+                    </div>
+                    <div v-if="summary.mostActive" class="fs-card">
+                      <small>QUEM MAIS JOGOU</small>
+                      <strong>{{ summary.mostActive.name }}</strong>
+                      <span>{{ summary.mostActive.count }} {{ summary.mostActive.count === 1 ? 'partida' : 'partidas' }}</span>
+                    </div>
+                  </div>
+
+                  <div v-if="summary.podium.length" class="fs-block">
+                    <p class="fs-label">TOP 3 DA NOITE</p>
+                    <div v-for="(item, i) in summary.podium" :key="i" class="fs-row">
+                      <span class="fs-medal" :class="`fs-medal--${i + 1}`">{{ i + 1 }}</span>
+                      <strong>{{ item.name }}</strong>
+                      <em>{{ item.value }}</em>
+                    </div>
+                  </div>
+
+                  <div v-if="summary.karaoke" class="fs-block">
+                    <p class="fs-label">NO KARAOKÊ</p>
+                    <div class="fs-grid fs-grid--three">
+                      <div v-if="summary.karaoke.song" class="fs-card fs-card--small">
+                        <small>MÚSICA DA NOITE</small>
+                        <strong>{{ summary.karaoke.song.name }}</strong>
+                        <span>{{ summary.karaoke.song.value }}</span>
+                      </div>
+                      <div v-if="summary.karaoke.singer" class="fs-card fs-card--small">
+                        <small>REI DO MICROFONE</small>
+                        <strong>{{ summary.karaoke.singer.name }}</strong>
+                        <span>{{ summary.karaoke.singer.value }}</span>
+                      </div>
+                      <div v-if="summary.karaoke.best" class="fs-card fs-card--small">
+                        <small>MAIOR NOTA</small>
+                        <strong>{{ summary.karaoke.best.player_name }}</strong>
+                        <span>{{ summary.karaoke.best.score }} pts</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div v-if="summary.target" class="fs-block">
+                    <p class="fs-label">NO PARE NO ALVO</p>
+                    <div class="fs-grid fs-grid--three">
+                      <div v-for="card in summary.target" :key="card.label" class="fs-card fs-card--small">
+                        <small>{{ card.label }}</small>
+                        <strong>{{ card.name }}</strong>
+                        <span>{{ card.sub }}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div v-if="summary.timing" class="fs-block">
+                    <p class="fs-label">NO ACERTE O TEMPO</p>
+                    <div class="fs-grid fs-grid--three">
+                      <div v-for="card in summary.timing" :key="card.label" class="fs-card fs-card--small">
+                        <small>{{ card.label }}</small>
+                        <strong>{{ card.name }}</strong>
+                        <span>{{ card.sub }}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div v-if="summary.champions.length > 1" class="fs-block">
+                    <p class="fs-label">CAMPEÕES POR JOGO</p>
+                    <div v-for="(item, i) in summary.champions" :key="i" class="fs-champion">
+                      <span>{{ item.game }}</span>
+                      <strong>{{ item.name }}</strong>
+                    </div>
+                  </div>
 
                   <div class="recap-final__signature">
                     <span>VOCÊ FEZ PARTE DISSO</span>
@@ -271,8 +393,9 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { Sparkles, Play, Pause, Volume2, VolumeX, Download } from '@lucide/vue'
+import { Sparkles, Play, Pause, Volume2, VolumeX, Download, Crown } from '@lucide/vue'
 import api from '@/services/api'
+import CountUpText from '@/components/CountUpText.vue'
 
 const route = useRoute()
 const loading = ref(true)
@@ -286,6 +409,159 @@ const audioRef = ref(null)
 const animatedMetric = ref(0)
 let progressTimer = null
 let metricFrameId = null
+
+// ---- revelação do ranking (suspense) --------------------------------------
+const restShown = ref(0) // quantos dos "demais" já apareceram (de baixo pra cima)
+const winnerShown = ref(false)
+const confetti = ref([])
+let rankTimers = []
+const REVEAL_START = 800
+const REVEAL_STEP = 700
+
+const prefersReducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+
+// o lugar i (0 = 2º colocado) aparece quando o contador chega nele, começando do último
+function isRestShown(i) {
+  const restCount = (currentSlide.value?.items?.length || 1) - 1
+  return i >= restCount - restShown.value
+}
+
+// nome do campeão em palavras/letras, cada letra com seu atraso (efeito de letras subindo)
+const winnerWords = computed(() => {
+  const slide = currentSlide.value
+  const name = (slide?.type === 'karaokeBest' ? slide.best?.player_name : slide?.items?.[0]?.name) || ''
+  let counter = 0
+  return name.split(' ').filter(Boolean).map((word) => {
+    const chars = word.split('')
+    const entry = { chars, start: counter }
+    counter += chars.length + 1
+    return entry
+  })
+})
+
+function makeConfetti() {
+  const colors = ['#c7ff57', '#ffffff', '#ffd23f', '#ff7ab6', '#7fe3e8', '#ff9f43']
+  return Array.from({ length: 56 }, () => {
+    const dx = (Math.random() - 0.5) * 760
+    const dy = -(120 + Math.random() * 360)
+    const size = 7 + Math.random() * 9
+    return {
+      '--dx': `${dx.toFixed(0)}px`,
+      '--dy': `${dy.toFixed(0)}px`,
+      '--fall': `${(240 + Math.random() * 260).toFixed(0)}px`,
+      '--rot': `${(Math.random() * 900 - 450).toFixed(0)}deg`,
+      width: `${size.toFixed(0)}px`,
+      height: `${(size * (Math.random() > 0.5 ? 1 : 0.45)).toFixed(0)}px`,
+      background: colors[Math.floor(Math.random() * colors.length)],
+      borderRadius: Math.random() > 0.6 ? '50%' : '2px',
+      animationDelay: `${(Math.random() * 260).toFixed(0)}ms`,
+      animationDuration: `${(1700 + Math.random() * 900).toFixed(0)}ms`,
+    }
+  })
+}
+
+// ---- trecho da gravação da maior nota ---------------------------------------
+const snippetPlaying = ref(false)
+let snippetVoice = null
+let snippetMusic = null
+let snippetTimer = null
+const SNIPPET_SECONDS = 13
+
+function setBackgroundVolume(volume) {
+  if (audioRef.value) audioRef.value.volume = volume
+}
+
+function stopSnippet() {
+  clearTimeout(snippetTimer)
+  for (const el of [snippetVoice, snippetMusic]) {
+    if (el) {
+      el.onended = null
+      el.pause()
+    }
+  }
+  snippetVoice = null
+  snippetMusic = null
+  if (snippetPlaying.value) setBackgroundVolume(1)
+  snippetPlaying.value = false
+}
+
+// A voz gravada toca junto com a música original, a partir de uns segundos depois da 1ª frase
+// (pra não cair numa introdução instrumental). A música de fundo do recap fica MUDA enquanto o
+// trecho toca (continua rodando, só sem som) e volta ao normal quando ele termina.
+async function playBestSnippet() {
+  if (snippetPlaying.value) {
+    stopSnippet()
+    return
+  }
+  const best = currentSlide.value?.best
+  if (!best?.recording_url) return
+
+  stopSnippet()
+  const voice = new Audio(best.recording_url)
+  const music = best.audio_url ? new Audio(best.audio_url) : null
+  voice.volume = 1
+  if (music) music.volume = 0.22
+  snippetVoice = voice
+  snippetMusic = music
+
+  const start = Number(best.snippet_start || 0) + 6
+  try {
+    await new Promise((resolve) => {
+      if (voice.readyState >= 1) resolve()
+      else {
+        voice.addEventListener('loadedmetadata', resolve, { once: true })
+        voice.addEventListener('error', resolve, { once: true })
+      }
+    })
+    if (snippetVoice !== voice) return
+    // gravações sem duração (webm do navegador) podem não deixar pular: usa onde ele realmente parou
+    try {
+      voice.currentTime = start
+    } catch (err) {
+      // segue do início
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250))
+    if (music) music.currentTime = voice.currentTime
+    setBackgroundVolume(0)
+    snippetPlaying.value = true
+    await Promise.all([voice.play(), music ? music.play() : Promise.resolve()])
+    snippetTimer = setTimeout(stopSnippet, SNIPPET_SECONDS * 1000)
+    voice.onended = stopSnippet
+  } catch (err) {
+    stopSnippet()
+  }
+}
+
+function clearRankTimers() {
+  rankTimers.forEach(clearTimeout)
+  rankTimers = []
+}
+
+function runRankingReveal(slide) {
+  clearRankTimers()
+  const restCount = Math.max(0, (slide.items?.length || 1) - 1)
+  restShown.value = 0
+  winnerShown.value = false
+  confetti.value = []
+
+  if (prefersReducedMotion()) {
+    restShown.value = restCount
+    winnerShown.value = true
+    return
+  }
+
+  for (let k = 1; k <= restCount; k += 1) {
+    rankTimers.push(setTimeout(() => (restShown.value = k), REVEAL_START + (k - 1) * REVEAL_STEP))
+  }
+  // pausa dramática antes do campeão
+  const winnerAt = REVEAL_START + restCount * REVEAL_STEP + 500
+  rankTimers.push(
+    setTimeout(() => {
+      winnerShown.value = true
+      confetti.value = makeConfetti()
+    }, winnerAt)
+  )
+}
 
 // Paleta "estilo Wrapped": cada slide troca de cor, sempre com base escura
 // pro texto branco continuar legível por cima.
@@ -326,16 +602,104 @@ const slides = computed(() => {
       list.push({ type: 'ranking', title: `Ranking: ${entry.jogo}`, items: entry.ranking })
     }
   })
-  if (d.fotos?.length) {
-      d.fotos.forEach((foto) => {
-        list.push({ type: 'gallery', photo: foto })
+  // karaokê: só aparece se alguém cantou
+  const karaoke = d.karaoke
+  if (karaoke?.musicas_mais_cantadas?.length) {
+    list.push({
+      type: 'ranking',
+      title: 'Músicas mais cantadas',
+      eyebrow: '✳ NO KARAOKÊ',
+      championLabel: 'A MÚSICA DA NOITE',
+      items: karaoke.musicas_mais_cantadas,
     })
-}
+  }
+  if (karaoke?.quem_mais_cantou?.length) {
+    list.push({
+      type: 'ranking',
+      title: 'Quem mais cantou',
+      eyebrow: '✳ NO KARAOKÊ',
+      championLabel: 'O REI DO MICROFONE',
+      items: karaoke.quem_mais_cantou,
+    })
+  }
+  if (karaoke?.maior_nota) list.push({ type: 'karaokeBest', best: karaoke.maior_nota })
+  // pare no alvo: só aparece se alguém jogou
+  if (d.pare_no_alvo?.mais_longe?.length) {
+    list.push({
+      type: 'ranking',
+      title: 'Quem foi mais longe',
+      eyebrow: '✳ NO PARE NO ALVO',
+      championLabel: 'O MESTRE DA MIRA',
+      items: d.pare_no_alvo.mais_longe,
+    })
+  }
+  // acerte o tempo: só aparece se alguém jogou
+  if (d.acerte_o_tempo?.mais_perto?.length) {
+    list.push({
+      type: 'ranking',
+      title: 'Quem chegou mais perto',
+      eyebrow: '✳ NO ACERTE O TEMPO',
+      championLabel: 'O RELÓGIO SUÍÇO',
+      items: d.acerte_o_tempo.mais_perto,
+    })
+  }
   list.push({ type: 'final', text: d.resumo || '' })
   return list
 })
 
 const currentSlide = computed(() => slides.value[step.value] || slides.value[0])
+
+function formatEventDate(value) {
+  if (!value) return ''
+  return new Date(value).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })
+}
+
+// Tudo que o resumo final mostra (na tela e na imagem pra baixar). Cada bloco é opcional: só
+// entra o que o evento realmente tem.
+const summary = computed(() => {
+  const d = recap.value?.data || {}
+  const info = recap.value?.event_info || {}
+  const plays = d.total_jogadas ?? 0
+  const players = d.total_jogadores ?? 0
+  const karaoke = d.karaoke
+  const timing = d.acerte_o_tempo
+  const target = d.pare_no_alvo
+
+  return {
+    dateLine: [formatEventDate(info.starts_at), info.location].filter(Boolean).join(' · '),
+    stats: [
+      { value: plays, label: 'JOGADAS' },
+      { value: players, label: 'JOGADORES' },
+      { value: d.jogos_jogados ?? d.top_jogos?.length ?? 0, label: 'JOGOS' },
+      { value: players ? (plays / players).toFixed(1).replace('.', ',') : '0', label: 'POR PESSOA' },
+    ],
+    favorite: d.top_jogos?.[0] ? { name: d.jogo_mais_jogado || d.top_jogos[0].name, value: d.top_jogos[0].value } : null,
+    bestScore: d.melhor_jogada || null,
+    mostActive: d.mais_partidas || null,
+    podium: (d.top_jogadores || []).slice(0, 3),
+    champions: (d.por_jogo || [])
+      .filter((entry) => entry.ranking?.length)
+      .map((entry) => ({ game: entry.jogo, name: entry.ranking[0].name, value: entry.ranking[0].value }))
+      .slice(0, 3),
+    karaoke: karaoke
+      ? { song: karaoke.musicas_mais_cantadas?.[0], singer: karaoke.quem_mais_cantou?.[0], best: karaoke.maior_nota }
+      : null,
+    target: target
+      ? [
+          { label: 'FOI MAIS LONGE', name: target.melhor.player_name, sub: target.melhor.value },
+          { label: 'PRECISÃO MÉDIA', name: `${target.precisao_media}%`, sub: `${target.tentativas} ${target.tentativas === 1 ? 'tentativa' : 'tentativas'}` },
+          { label: 'MÉDIA DE NÍVEIS', name: target.media_niveis, sub: 'por tentativa' },
+        ]
+      : null,
+    timing: timing
+      ? [
+          { label: 'MAIS PRECISO', name: timing.melhor.player_name, sub: timing.melhor.value },
+          { label: 'NA MOSCA', name: `${timing.na_mosca}`, sub: timing.na_mosca === 1 ? 'tentativa exata' : 'tentativas exatas' },
+          { label: 'PRECISÃO MÉDIA', name: `± ${timing.media} s`, sub: `${timing.tentativas} ${timing.tentativas === 1 ? 'tentativa' : 'tentativas'}` },
+        ]
+      : null,
+  }
+})
 const currentTheme = computed(() => THEMES[step.value % THEMES.length])
 
 const gradientStyle = computed(() => {
@@ -350,8 +714,13 @@ const gradientStyle = computed(() => {
 })
 
 function progressIncrement() {
-  if (currentSlide.value?.type === 'gallery') return 2
-  if (currentSlide.value?.type === 'ranking') return 0.65
+  const slide = currentSlide.value
+  if (slide?.type === 'karaokeBest') return 100 / (17000 / 80)
+  if (slide?.type === 'ranking') {
+    // tempo da revelação (cada lugar + campeão) + uns segundos pra apreciar o resultado
+    const ms = 6500 + (slide.items?.length || 1) * 1000
+    return 100 / (ms / 80)
+  }
   return 0.8
 }
 
@@ -412,6 +781,7 @@ function restart() {
 function togglePause() {
   paused.value = !paused.value
   if (paused.value) {
+    stopSnippet()
     stopProgress()
     audioRef.value?.pause()
   } else {
@@ -437,6 +807,15 @@ watch(
       animatedMetric.value = 0
       metricFrameId = animateValue((v) => (animatedMetric.value = v), 0, Number(slide.value) || 0, 900)
     }
+    stopSnippet()
+    if (slide?.type === 'ranking') runRankingReveal(slide)
+    else clearRankTimers()
+    if (slide?.type === 'karaokeBest') {
+      confetti.value = []
+      rankTimers.push(setTimeout(() => (confetti.value = makeConfetti()), 700))
+      // começa a tocar sozinho (a pessoa já tocou em "Ver meu recap", então o navegador deixa)
+      if (started.value) rankTimers.push(setTimeout(playBestSnippet, 2200))
+    }
   },
   { immediate: true }
 )
@@ -460,18 +839,17 @@ function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
 }
 
 // Card de resumo desenhado num canvas (sem depender de captura de tela) —
-// evita problemas de CORS com as fotos hospedadas no R2 e dá controle total
-// do visual, no mesmo espírito colorido do resto do recap.
+// dá controle total do visual, no mesmo espírito colorido do resto do recap.
 async function downloadSummaryImage() {
   await document.fonts.ready
 
-  const d = recap.value?.data || {}
   const eventName = recap.value?.event_name || 'Seu evento'
-  const champion = d.top_jogadores?.[0]
-  const favoriteGame = d.jogo_mais_jogado || d.top_jogos?.[0]?.name
+  const sm = summary.value
 
   const W = 1080
   const H = 1920
+  const M = 76
+  const CW = W - M * 2
   const canvas = document.createElement('canvas')
   canvas.width = W
   canvas.height = H
@@ -483,6 +861,7 @@ async function downloadSummaryImage() {
   const white = '#FFFFFF'
   const muted = '#C8D3D0'
   const dark = '#101D22'
+  const FONT = 'Arial, sans-serif'
 
   function roundedRect(x, y, w, h, radius) {
     const r = Math.min(radius, w / 2, h / 2)
@@ -495,40 +874,47 @@ async function downloadSummaryImage() {
     ctx.closePath()
   }
 
-  function fitText(text, maxWidth, startSize, minSize, weight = 900) {
-    let size = startSize
-    while (size > minSize) {
-      ctx.font = `${weight} ${size}px Arial, sans-serif`
-      if (ctx.measureText(text).width <= maxWidth) break
-      size -= 2
+  function box(x, y, w, h, radius, color) {
+    ctx.fillStyle = color
+    roundedRect(x, y, w, h, radius)
+    ctx.fill()
+  }
+
+  // escreve um texto; com maxWidth, reduz a fonte até caber
+  function write(value, x, y, { size = 28, weight = 900, color = white, align = 'left', maxWidth = 0, min = 16, italic = false } = {}) {
+    const textValue = String(value ?? '')
+    let fontSize = size
+    ctx.font = `${italic ? 'italic ' : ''}${weight} ${fontSize}px ${FONT}`
+    if (maxWidth) {
+      while (fontSize > min && ctx.measureText(textValue).width > maxWidth) {
+        fontSize -= 2
+        ctx.font = `${italic ? 'italic ' : ''}${weight} ${fontSize}px ${FONT}`
+      }
     }
-    return size
+    ctx.fillStyle = color
+    ctx.textAlign = align
+    ctx.fillText(textValue, x, y)
+    ctx.textAlign = 'left'
   }
 
   function drawWrapped(text, x, y, maxWidth, lineHeight, maxLines = 3) {
     const words = String(text).split(/\s+/)
     const lines = []
     let line = ''
-
     for (const word of words) {
       const next = line ? `${line} ${word}` : word
-      if (ctx.measureText(next).width <= maxWidth || !line) {
-        line = next
-      } else {
+      if (ctx.measureText(next).width <= maxWidth || !line) line = next
+      else {
         lines.push(line)
         line = word
       }
     }
     if (line) lines.push(line)
-
-    lines.slice(0, maxLines).forEach((value, index) => {
-      ctx.fillText(value, x, y + index * lineHeight)
-    })
-
+    lines.slice(0, maxLines).forEach((value, index) => ctx.fillText(value, x, y + index * lineHeight))
     return Math.min(lines.length, maxLines)
   }
 
-  // Fundo
+  // ---- fundo ----
   const background = ctx.createLinearGradient(0, 0, W, H)
   background.addColorStop(0, '#183B5A')
   background.addColorStop(0.48, '#202249')
@@ -548,120 +934,189 @@ async function downloadSummaryImage() {
   ctx.fillStyle = bottomGlow
   ctx.fillRect(0, 900, W, 1020)
 
-  // Elemento gráfico de fundo
   ctx.save()
-  ctx.translate(900, 460)
+  ctx.translate(900, 420)
   ctx.rotate(-0.22)
-  ctx.font = '900 620px Arial, sans-serif'
+  ctx.font = `900 620px ${FONT}`
   ctx.fillStyle = 'rgba(255,255,255,0.055)'
   ctx.textAlign = 'center'
   ctx.fillText('✳', 0, 0)
   ctx.restore()
-
   ctx.textAlign = 'left'
 
-  // Cabeçalho
-  ctx.fillStyle = lime
-  ctx.font = '900 32px Arial, sans-serif'
-  ctx.fillText('✳  POLE EVENTOS RECAP', 76, 115)
+  // ---- cabeçalho e título ----
+  write('✳  POLE EVENTOS RECAP', M, 105, { size: 30, color: lime })
+  write('RESUMO DA NOITE', W - M, 105, { size: 26, weight: 700, color: 'rgba(255,255,255,0.55)', align: 'right' })
 
-  ctx.fillStyle = 'rgba(255,255,255,0.55)'
-  ctx.font = '700 27px Arial, sans-serif'
-  ctx.textAlign = 'right'
-  ctx.fillText('MOMENTOS EM NÚMEROS', W - 76, 115)
-  ctx.textAlign = 'left'
-
-  // Título principal
+  write('Uma festa para lembrar.', M, 188, { size: 36, weight: 700 })
+  ctx.font = `900 92px ${FONT}`
   ctx.fillStyle = white
-  ctx.font = '700 42px Arial, sans-serif'
-  ctx.fillText('Uma festa para lembrar.', 76, 258)
+  const titleLines = drawWrapped(eventName, M, 282, CW, 94, 2)
+  let y = 282 + (titleLines - 1) * 94
+  write('em replay.', M, y + 76, { size: 68, color: lime, italic: true })
+  y += 76
+  if (sm.dateLine) {
+    write(sm.dateLine, M, y + 50, { size: 28, weight: 600, color: muted, maxWidth: CW })
+    y += 50
+  }
+  y += 44
 
-  ctx.font = '900 104px Arial, sans-serif'
-  const titleLines = drawWrapped(eventName, 76, 374, W - 152, 105, 3)
+  // ---- blocos (os menos importantes só entram se couberem) ----
+  const GAP = 22
+  const LIMIT = H - 200
+  const blocks = []
 
-  const accentY = 374 + titleLines * 105 + 15
-  ctx.fillStyle = lime
-  ctx.font = 'italic 900 90px Arial, sans-serif'
-  ctx.fillText('em replay.', 76, accentY)
-
-  // Linha de divisão
-  const dividerY = Math.max(accentY + 90, 730)
-  ctx.fillStyle = 'rgba(255,255,255,0.5)'
-  ctx.fillRect(76, dividerY, W - 152, 2)
-
-  // Números principais
-  const statY = dividerY + 68
-  const statWidth = 446
-  const statHeight = 310
-
-  ctx.fillStyle = 'rgba(255,255,255,0.11)'
-  roundedRect(76, statY, statWidth, statHeight, 34)
-  ctx.fill()
-  roundedRect(558, statY, statWidth, statHeight, 34)
-  ctx.fill()
-
-  const stats = [
-    { x: 110, value: d.total_jogadas ?? 0, label: 'JOGADAS' },
-    { x: 592, value: d.total_jogadores ?? 0, label: 'JOGADORES' },
-  ]
-
-  stats.forEach(({ x, value, label }) => {
-    ctx.fillStyle = lime
-    const size = fitText(String(value), 370, 166, 96)
-    ctx.font = `900 ${size}px Arial, sans-serif`
-    ctx.fillText(String(value), x, statY + 190)
-
-    ctx.fillStyle = white
-    ctx.font = '900 28px Arial, sans-serif'
-    ctx.fillText(label, x, statY + 260)
+  // números principais
+  blocks.push({
+    h: 150,
+    draw(top) {
+      const w = (CW - 16 * 3) / 4
+      sm.stats.forEach((stat, i) => {
+        const x = M + i * (w + 16)
+        box(x, top, w, 150, 28, 'rgba(255,255,255,0.11)')
+        write(stat.value, x + 22, top + 88, { size: 66, color: lime, maxWidth: w - 40, min: 36 })
+        write(stat.label, x + 22, top + 126, { size: 19, color: white })
+      })
+    },
   })
 
-  // Destaque do jogo
-  const gameY = statY + statHeight + 54
-  ctx.fillStyle = lime
-  roundedRect(76, gameY, W - 152, 226, 34)
-  ctx.fill()
-
-  ctx.fillStyle = dark
-  ctx.font = '900 27px Arial, sans-serif'
-  ctx.fillText('O JOGO FAVORITO DA FESTA', 110, gameY + 62)
-
-  const gameName = String(favoriteGame || 'Muita diversão')
-  const gameSize = fitText(gameName, W - 220, 103, 55)
-  ctx.font = `900 ${gameSize}px Arial, sans-serif`
-  ctx.fillText(gameName, 110, gameY + 172)
-
-  // Campeão, quando houver
-  if (champion) {
-    const championY = gameY + 282
-
-    ctx.fillStyle = muted
-    ctx.font = '900 27px Arial, sans-serif'
-    ctx.fillText('QUEM DOMINOU O RANKING', 76, championY)
-
-    ctx.fillStyle = white
-    const championName = String(champion.name || 'Campeão')
-    const championSize = fitText(championName, W - 152, 94, 52)
-    ctx.font = `900 ${championSize}px Arial, sans-serif`
-    ctx.fillText(championName, 76, championY + 105)
-
-    ctx.fillStyle = lime
-    ctx.font = '800 43px Arial, sans-serif'
-    ctx.fillText(String(champion.value ?? ''), 76, championY + 168)
+  // jogo favorito
+  if (sm.favorite) {
+    blocks.push({
+      h: 130,
+      draw(top) {
+        box(M, top, CW, 130, 30, lime)
+        write('O JOGO FAVORITO DA FESTA', M + 30, top + 36, { size: 21, color: dark })
+        write(sm.favorite.name, M + 30, top + 108, { size: 62, color: dark, maxWidth: CW - 280, min: 34 })
+        write(sm.favorite.value, W - M - 30, top + 108, { size: 32, color: dark, align: 'right' })
+      },
+    })
   }
 
-  // Rodapé
+  // maior pontuação e quem mais jogou
+  const highlights = []
+  if (sm.bestScore) {
+    highlights.push({ label: 'MAIOR PONTUAÇÃO EM UMA PARTIDA', name: sm.bestScore.player_name, sub: `${sm.bestScore.score} pts · ${sm.bestScore.game}` })
+  }
+  if (sm.mostActive) {
+    highlights.push({
+      label: 'QUEM MAIS JOGOU',
+      name: sm.mostActive.name,
+      sub: `${sm.mostActive.count} ${sm.mostActive.count === 1 ? 'partida' : 'partidas'}`,
+    })
+  }
+  if (highlights.length) {
+    blocks.push({
+      h: 160,
+      draw(top) {
+        const w = (CW - 16 * (highlights.length - 1)) / highlights.length
+        highlights.forEach((item, i) => {
+          const x = M + i * (w + 16)
+          box(x, top, w, 160, 28, 'rgba(255,255,255,0.11)')
+          write(item.label, x + 26, top + 40, { size: 19, color: lime, maxWidth: w - 50, min: 14 })
+          write(item.name, x + 26, top + 98, { size: 50, maxWidth: w - 50, min: 28 })
+          write(item.sub, x + 26, top + 138, { size: 25, weight: 700, color: muted, maxWidth: w - 50, min: 16 })
+        })
+      },
+    })
+  }
+
+  // top 3
+  if (sm.podium.length) {
+    blocks.push({
+      h: 44 + sm.podium.length * 64,
+      draw(top) {
+        write('TOP 3 DA NOITE', M, top + 26, { size: 23, color: muted })
+        const medals = ['#F4B400', '#9CA3AF', '#B45309']
+        sm.podium.forEach((item, i) => {
+          const rowY = top + 44 + i * 64
+          box(M, rowY, CW, 56, 28, 'rgba(255,255,255,0.09)')
+          ctx.fillStyle = medals[i]
+          ctx.beginPath()
+          ctx.arc(M + 34, rowY + 28, 22, 0, Math.PI * 2)
+          ctx.fill()
+          write(i + 1, M + 34, rowY + 38, { size: 26, color: white, align: 'center' })
+          write(item.name, M + 78, rowY + 39, { size: 36, maxWidth: 560, min: 22 })
+          write(item.value, W - M - 24, rowY + 38, { size: 32, color: lime, align: 'right' })
+        })
+      },
+    })
+  }
+
+  // karaokê
+  if (sm.karaoke) {
+    const cards = [
+      sm.karaoke.song && { label: 'MÚSICA DA NOITE', name: sm.karaoke.song.name, sub: sm.karaoke.song.value },
+      sm.karaoke.singer && { label: 'REI DO MICROFONE', name: sm.karaoke.singer.name, sub: sm.karaoke.singer.value },
+      sm.karaoke.best && { label: 'MAIOR NOTA', name: sm.karaoke.best.player_name, sub: `${sm.karaoke.best.score} pts` },
+    ].filter(Boolean)
+    blocks.push({
+      h: 44 + 166,
+      draw(top) {
+        write('NO KARAOKÊ', M, top + 26, { size: 23, color: muted })
+        const w = (CW - 16 * (cards.length - 1)) / cards.length
+        cards.forEach((card, i) => {
+          const x = M + i * (w + 16)
+          box(x, top + 44, w, 166, 26, 'rgba(255,255,255,0.11)')
+          write(card.label, x + 22, top + 44 + 38, { size: 17, color: lime, maxWidth: w - 40, min: 12 })
+          write(card.name, x + 22, top + 44 + 96, { size: 38, maxWidth: w - 40, min: 20 })
+          write(card.sub, x + 22, top + 44 + 138, { size: 24, weight: 700, color: muted, maxWidth: w - 40, min: 14 })
+        })
+      },
+    })
+  }
+
+  // pare no alvo e acerte o tempo: mesmo desenho de três cards
+  for (const [title, cardsOf] of [['NO PARE NO ALVO', sm.target], ['NO ACERTE O TEMPO', sm.timing]]) {
+    if (!cardsOf) continue
+    const cards = cardsOf
+    blocks.push({
+      h: 44 + 166,
+      draw(top) {
+        write(title, M, top + 26, { size: 23, color: muted })
+        const w = (CW - 16 * (cards.length - 1)) / cards.length
+        cards.forEach((card, i) => {
+          const x = M + i * (w + 16)
+          box(x, top + 44, w, 166, 26, 'rgba(255,255,255,0.11)')
+          write(card.label, x + 22, top + 44 + 38, { size: 17, color: lime, maxWidth: w - 40, min: 12 })
+          write(card.name, x + 22, top + 44 + 96, { size: 38, maxWidth: w - 40, min: 20 })
+          write(card.sub, x + 22, top + 44 + 138, { size: 24, weight: 700, color: muted, maxWidth: w - 40, min: 14 })
+        })
+      },
+    })
+  }
+
+  // campeões por jogo
+  if (sm.champions.length > 1) {
+    blocks.push({
+      h: 44 + sm.champions.length * 52,
+      draw(top) {
+        write('CAMPEÕES POR JOGO', M, top + 26, { size: 23, color: muted })
+        sm.champions.forEach((item, i) => {
+          const rowY = top + 44 + i * 52
+          write(item.game, M, rowY + 34, { size: 27, weight: 700, color: muted, maxWidth: 400, min: 16 })
+          write(item.name, W - M, rowY + 34, { size: 30, align: 'right', maxWidth: 480, min: 18 })
+        })
+      },
+    })
+  }
+
+  // linha antes dos números
+  ctx.fillStyle = 'rgba(255,255,255,0.5)'
+  ctx.fillRect(M, y - 24, CW, 2)
+
+  let cursor = y
+  for (const block of blocks) {
+    if (cursor + block.h > LIMIT) continue
+    block.draw(cursor)
+    cursor += block.h + GAP
+  }
+
+  // ---- rodapé ----
   ctx.fillStyle = 'rgba(255,255,255,0.35)'
-  ctx.fillRect(76, H - 174, W - 152, 2)
-
-  ctx.fillStyle = white
-  ctx.font = '900 31px Arial, sans-serif'
-  ctx.fillText('FOI INESQUECÍVEL. ✳', 76, H - 104)
-
-  ctx.fillStyle = muted
-  ctx.font = '800 25px Arial, sans-serif'
-  ctx.textAlign = 'right'
-  ctx.fillText('POLE EVENTOS', W - 76, H - 104)
+  ctx.fillRect(M, H - 174, CW, 2)
+  write('FOI INESQUECÍVEL. ✳', M, H - 104, { size: 31 })
+  write('POLE EVENTOS', W - M, H - 104, { size: 25, weight: 800, color: muted, align: 'right' })
 
   canvas.toBlob((blob) => {
     if (!blob) return
@@ -695,7 +1150,11 @@ async function load() {
 }
 
 onMounted(load)
-onUnmounted(stopProgress)
+onUnmounted(() => {
+  stopProgress()
+  clearRankTimers()
+  stopSnippet()
+})
 </script>
 
 <style scoped>
@@ -1294,83 +1753,6 @@ onUnmounted(stopProgress)
   }
 }
 
-/* GALERIA */
-.gallery-full {
-  position: relative;
-  width: 100vw;
-  height: 100vh;
-  height: 100svh;
-  flex: none;
-  overflow: hidden;
-  background: #151515;
-  text-align: left;
-}
-
-.gallery-full__photos {
-  display: grid;
-  width: 100%;
-  height: 100%;
-  grid-template-columns: repeat(
-    min(var(--photo-count), 4),
-    minmax(0, 1fr)
-  );
-  grid-auto-rows: minmax(0, 1fr);
-  gap: 4px;
-}
-
-.gallery-full__image {
-  display: block;
-  width: 100%;
-  height: 100%;
-  min-height: 0;
-  object-fit: cover;
-  object-position: center;
-}
-
-.gallery-full__shade {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: linear-gradient(
-    to bottom,
-    rgba(0, 0, 0, .12),
-    transparent 35%,
-    rgba(0, 0, 0, .15) 55%,
-    rgba(0, 0, 0, .82)
-  );
-}
-
-.gallery-full__name {
-  position: absolute;
-  right: 28px;
-  bottom: clamp(75px, 12vh, 140px);
-  left: 28px;
-  margin: 0;
-  color: #fff;
-  font-size: clamp(68px, 15vw, 170px);
-  font-weight: 950;
-  line-height: .9;
-  letter-spacing: -.075em;
-  overflow-wrap: anywhere;
-  text-shadow: 0 8px 30px rgba(0, 0, 0, .45);
-}
-
-@media (max-width: 640px) {
-  .gallery-full__photos {
-    grid-template-columns: repeat(
-      min(var(--photo-count), 2),
-      minmax(0, 1fr)
-    );
-  }
-
-  .gallery-full__name {
-    right: 22px;
-    bottom: 105px;
-    left: 22px;
-    font-size: clamp(62px, 18vw, 100px);
-  }
-}
-
 /* FINAL */
 
 .recap-final {
@@ -1608,4 +1990,318 @@ onUnmounted(stopProgress)
     margin-top: 18px;
   }
 }
+
+/* ============ REVELAÇÃO DO RANKING ============ */
+.rk-fade {
+  animation: rk-fade .7s cubic-bezier(.22, 1, .36, 1) both;
+  animation-delay: var(--d, 0ms);
+}
+@keyframes rk-fade {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* os "demais": entram de baixo pra cima, cada um com um quique */
+.ranking-rest__item {
+  opacity: 0;
+  transform: translateX(-54px) scale(.93);
+  animation: none;
+  transition: opacity .45s ease, transform .75s cubic-bezier(.34, 1.56, .64, 1);
+}
+.ranking-rest__item.is-in {
+  opacity: 1;
+  transform: none;
+}
+.ranking-rest__item.is-in .ranking-rest__position {
+  animation: pos-pop .7s .1s cubic-bezier(.34, 1.56, .64, 1) both;
+}
+.ranking-rest__item.is-in:first-of-type {
+  background: rgba(255, 255, 255, .23);
+  border-color: rgba(255, 255, 255, .45);
+}
+@keyframes pos-pop {
+  from { transform: scale(.3) rotate(-18deg); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
+/* campeão */
+.ranking-winner-wrap {
+  position: relative;
+}
+.ranking-winner {
+  opacity: 0;
+  transform: scale(.82) translateY(30px);
+}
+.ranking-winner > * {
+  position: relative;
+  z-index: 1;
+}
+.ranking-winner.is-in {
+  opacity: 1;
+  animation:
+    winner-in 1s cubic-bezier(.2, 1.25, .3, 1) both,
+    winner-ring 2.4s ease-in-out 1s infinite alternate,
+    winner-float 4.8s ease-in-out 1s infinite alternate;
+}
+@keyframes winner-in {
+  0% { opacity: 0; transform: scale(.7) translateY(40px) rotate(-2deg); filter: brightness(1.8); }
+  55% { opacity: 1; transform: scale(1.045) translateY(-6px) rotate(.4deg); filter: brightness(1.15); }
+  100% { opacity: 1; transform: none; filter: none; }
+}
+@keyframes winner-ring {
+  from { box-shadow: 0 24px 55px rgba(0, 0, 0, .24), 0 0 0 0 rgba(199, 255, 87, .0); }
+  to { box-shadow: 0 24px 55px rgba(0, 0, 0, .24), 0 0 70px 8px rgba(199, 255, 87, .5); }
+}
+@keyframes winner-float {
+  from { translate: 0 0; }
+  to { translate: 0 -7px; }
+}
+
+/* brilho que atravessa o cartão */
+.winner-shine {
+  position: absolute;
+  inset: 0;
+  z-index: 0 !important;
+  background: linear-gradient(115deg, transparent 32%, rgba(255, 255, 255, .7) 50%, transparent 68%);
+  transform: translateX(-130%);
+  pointer-events: none;
+}
+.ranking-winner.is-in .winner-shine {
+  animation: winner-shine 1.5s .55s ease-out both;
+}
+@keyframes winner-shine {
+  to { transform: translateX(130%); }
+}
+
+/* coroa que cai sobre o #1 */
+.winner-crown {
+  position: absolute;
+  right: 0;
+  top: -6px;
+  color: #17201a;
+  opacity: 0;
+  transform: translateY(-40px) rotate(-25deg) scale(.5);
+}
+.ranking-winner.is-in .winner-crown {
+  animation: crown-drop .9s .55s cubic-bezier(.34, 1.56, .64, 1) both, crown-bob 2.2s 1.5s ease-in-out infinite alternate;
+}
+@keyframes crown-drop {
+  to { opacity: 1; transform: none; }
+}
+@keyframes crown-bob {
+  from { translate: 0 0; rotate: -4deg; }
+  to { translate: 0 -5px; rotate: 5deg; }
+}
+
+/* nome: as letras sobem uma a uma */
+.ranking-winner__name {
+  overflow: hidden;
+  padding: .08em 0 .1em;
+}
+.rk-word {
+  display: inline-block;
+  margin-right: .14em;
+  white-space: nowrap;
+}
+.rk-char {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(105%) rotate(6deg);
+}
+.ranking-winner.is-in .rk-char {
+  animation: letter-rise .75s cubic-bezier(.2, 1.2, .3, 1) both;
+  animation-delay: calc(.3s + var(--i, 0) * 55ms);
+}
+@keyframes letter-rise {
+  to { opacity: 1; transform: none; }
+}
+
+/* confete explodindo do campeão */
+.confetti {
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  z-index: 5;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+.confetti__piece {
+  position: absolute;
+  left: 0;
+  top: 0;
+  opacity: 0;
+  animation: confetti-burst 2s cubic-bezier(.15, .7, .3, 1) both;
+}
+@keyframes confetti-burst {
+  0% { opacity: 1; transform: translate(0, 0) rotate(0); }
+  45% { opacity: 1; transform: translate(var(--dx), var(--dy)) rotate(calc(var(--rot) * .5)); }
+  100% { opacity: 0; transform: translate(calc(var(--dx) * 1.15), calc(var(--dy) + var(--fall))) rotate(var(--rot)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ranking-winner, .ranking-rest__item, .rk-char, .winner-crown, .rk-fade { animation: none !important; transition: none !important; }
+  .ranking-winner.is-in, .ranking-rest__item.is-in { opacity: 1; transform: none; }
+  .rk-char, .winner-crown { opacity: 1; transform: none; }
+  .confetti { display: none; }
+}
+
+/* ============ MAIOR NOTA DO KARAOKÊ ============ */
+.kbest-player {
+  margin-top: 20px;
+  padding: 16px 18px 14px;
+  border: 1px solid rgba(255, 255, 255, .22);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, .1);
+  backdrop-filter: blur(14px);
+}
+.kbest-bars {
+  display: flex;
+  height: 46px;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 4px;
+}
+.kbest-bars i {
+  display: block;
+  width: 6px;
+  height: 18%;
+  border-radius: 6px;
+  background: #c7ff57;
+  opacity: .55;
+  transform-origin: bottom;
+}
+.kbest-bars.is-playing i {
+  opacity: 1;
+  animation: kbest-eq ease-in-out infinite alternate;
+}
+@keyframes kbest-eq {
+  from { height: 14%; }
+  to { height: 100%; }
+}
+.kbest-player__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+}
+.kbest-player__label {
+  color: rgba(255, 255, 255, .75);
+  font-size: 12px;
+  font-weight: 700;
+}
+.kbest-player__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: #c7ff57;
+  color: #17201a;
+  font-size: 12px;
+  font-weight: 900;
+}
+.kbest-player__none {
+  margin: 16px 0 0;
+  color: rgba(255, 255, 255, .6);
+  font-size: 12px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .kbest-bars.is-playing i { animation: none; height: 60%; }
+}
+
+/* ============ RESUMO FINAL (mais completo) ============ */
+.recap-final__card {
+  max-height: calc(100vh - 170px);
+  overflow-y: auto;
+  pointer-events: auto;
+  scrollbar-width: none;
+}
+.recap-final__card::-webkit-scrollbar { display: none; }
+.recap-final__hero { margin-top: clamp(22px, 4vh, 44px); }
+.recap-final__hero h2 { font-size: clamp(40px, 8vw, 72px); }
+.recap-final__accent { font-size: clamp(28px, 5.5vw, 48px); }
+.recap-final__date {
+  position: relative;
+  z-index: 1;
+  margin: 10px 0 0;
+  color: rgba(255, 255, 255, .7);
+  font-size: 13px;
+  font-weight: 700;
+}
+.recap-final__stats--four {
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-top: clamp(20px, 3.5vh, 32px);
+}
+.recap-final__stats--four strong { font-size: clamp(30px, 6vw, 50px); }
+.recap-final__stats--four span { font-size: 9px; letter-spacing: .1em; }
+
+.fs-grid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 16px;
+}
+.fs-grid--three { grid-template-columns: repeat(3, 1fr); margin-top: 8px; }
+.fs-span { grid-column: 1 / -1; }
+.fs-card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+  padding: 13px 15px;
+  border: 1px solid rgba(255, 255, 255, .18);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, .1);
+  backdrop-filter: blur(10px);
+}
+.fs-card small { font-size: 9px; font-weight: 900; letter-spacing: .13em; opacity: .75; }
+.fs-card strong { font-size: 20px; line-height: 1.1; overflow-wrap: anywhere; }
+.fs-card span { font-size: 12px; font-weight: 700; opacity: .75; }
+.fs-card--lime { border-color: transparent; background: #c7ff57; color: #17201a; }
+.fs-card--lime strong { font-size: clamp(26px, 5vw, 38px); letter-spacing: -.03em; }
+.fs-card--small strong { font-size: 15px; }
+.fs-card--small span { font-size: 11px; }
+
+.fs-block { position: relative; z-index: 1; margin-top: 18px; }
+.fs-label { margin: 0 0 8px; color: rgba(255, 255, 255, .6); font-size: 10px; font-weight: 900; letter-spacing: .18em; }
+.fs-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 6px;
+  padding: 9px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, .09);
+}
+.fs-row strong { flex: 1; min-width: 0; font-size: 16px; overflow-wrap: anywhere; }
+.fs-row em { color: #c7ff57; font-size: 14px; font-style: normal; font-weight: 900; white-space: nowrap; }
+.fs-medal {
+  display: flex;
+  height: 28px;
+  width: 28px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 900;
+}
+.fs-medal--1 { background: #f4b400; }
+.fs-medal--2 { background: #9ca3af; }
+.fs-medal--3 { background: #b45309; }
+.fs-champion {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 2px;
+  border-bottom: 1px solid rgba(255, 255, 255, .12);
+  font-size: 13px;
+}
+.fs-champion span { color: rgba(255, 255, 255, .65); font-weight: 700; }
+.fs-champion strong { text-align: right; }
 </style>

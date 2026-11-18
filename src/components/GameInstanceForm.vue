@@ -142,6 +142,43 @@
         Sons ativados (cronômetro, acerto e erro)
       </label>
 
+      <div class="rounded-xl border border-ink/10 p-3">
+        <label class="flex items-center gap-2 text-sm font-bold text-ink">
+          <input v-model="form.config.capture_leads" type="checkbox" class="h-4 w-4 accent-primary" />
+          Captar leads antes de jogar
+        </label>
+        <p class="mt-1 text-xs text-ink-muted">
+          Pede nome, telefone, e-mail (opcional) e Instagram (opcional) antes de cada jogador começar.
+          Os leads ficam na aba "Leads" do evento, com opção de baixar a lista.
+        </p>
+      </div>
+
+      <!-- fontes e cores dos textos deste jogo (vazio = visual original do jogo) -->
+      <div class="space-y-5 rounded-xl border border-ink/10 p-4">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h4 class="text-sm font-bold text-ink">Fontes e cores dos textos</h4>
+            <p class="mt-0.5 text-xs text-ink-muted">
+              Deixe em "Padrão" para manter o visual original deste jogo. Vale também para a tela em que o convidado digita o nome.
+            </p>
+          </div>
+          <div class="flex gap-2">
+            <button type="button" class="btn-outline !px-3 !py-1.5 text-xs" @click="copyFromEvent">Copiar estilo do evento</button>
+            <button type="button" class="btn-ghost !px-3 !py-1.5 text-xs" @click="clearTypography">Limpar</button>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <div>
+            <p class="mb-3 text-xs font-extrabold uppercase tracking-wider text-primary-600">Títulos</p>
+            <TypographyGroup v-model="form.config.typography" prefix="title" with-default with-size default-font="Playfair Display" color-fallback="#2b2b2b" />
+          </div>
+          <div>
+            <p class="mb-3 text-xs font-extrabold uppercase tracking-wider text-primary-600">Textos</p>
+            <TypographyGroup v-model="form.config.typography" prefix="text" with-default default-font="Roboto" color-fallback="#6b6b6b" />
+          </div>
+        </div>
+      </div>
+
       <component
         :is="gameDef.editor"
         v-if="gameDef"
@@ -195,9 +232,13 @@ import { Link2 } from '@lucide/vue'
 import HighlightPicker from '@/components/HighlightPicker.vue'
 import ImageUploadField from '@/components/ImageUploadField.vue'
 import IconPicker from '@/components/IconPicker.vue'
+import TypographyGroup from '@/components/TypographyGroup.vue'
+import { gameConfigFromAppearance } from '@/utils/appearance'
 
-defineProps({
+const props = defineProps({
   form: { type: Object, required: true },
+  // aparência do evento (aba Aparência), usada no botão "Copiar estilo do evento"
+  eventAppearance: { type: Object, default: () => ({}) },
   editing: { type: Boolean, default: false },
   totems: { type: Array, default: () => [] },
   myGames: { type: Array, default: () => [] },
@@ -210,4 +251,12 @@ defineProps({
 })
 
 defineEmits(['save', 'cancel', 'generate-preview'])
+
+function copyFromEvent() {
+  Object.assign(props.form.config, gameConfigFromAppearance(props.eventAppearance))
+}
+
+function clearTypography() {
+  props.form.config.typography = {}
+}
 </script>

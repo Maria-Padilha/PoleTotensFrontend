@@ -1,4 +1,5 @@
-import { computed } from 'vue'
+import { computed, watchEffect } from 'vue'
+import { typographyVars, loadTypographyFonts } from '@/utils/appearance'
 import { ICON_MAP } from '@/components/iconMap'
 
 // Tudo que vem da personalização genérica (tema/cor/fundo/logo/ícone/textos do
@@ -7,6 +8,9 @@ import { ICON_MAP } from '@/components/iconMap'
 // o mesmo conjunto de campos de personalização pra qualquer jogo, então essa
 // lógica de "como esses campos viram estilo" também deve ser sempre a mesma.
 export function useGameTheme(props) {
+  // tipografia escolhida pro jogo (fonte, grossura, cor, espaçamento); vazio = padrão do jogo
+  const typography = computed(() => props.config?.typography || {})
+  watchEffect(() => loadTypographyFonts(typography.value))
   const accentColor = computed(() => props.config?.primary_color || '#10939b')
   const timerSeconds = computed(() => props.config?.timer_seconds || null)
   const soundEnabled = computed(() => props.config?.sound_enabled !== false)
@@ -30,7 +34,7 @@ export function useGameTheme(props) {
   // - tema claro sem foto: tinta escura simples, sem sombra (fundo já é claro
   //   e liso, não precisa de reforço).
   const useLightText = computed(() => isDarkTheme.value && hasBackgroundImage.value)
-  const hudTextStyle = computed(() => {
+  const baseHudTextStyle = computed(() => {
     if (useLightText.value) {
       return { color: '#ffffff', textShadow: '0 1px 10px rgba(0,0,0,0.45), 0 2px 24px rgba(0,0,0,0.4)' }
     }
@@ -42,7 +46,7 @@ export function useGameTheme(props) {
     }
     return { color: '#2b2b2b' }
   })
-  const hudSubTextStyle = computed(() => {
+  const baseHudSubTextStyle = computed(() => {
     if (useLightText.value) {
       return { color: 'rgba(255,255,255,0.85)', textShadow: '0 1px 8px rgba(0,0,0,0.4), 0 2px 18px rgba(0,0,0,0.35)' }
     }
@@ -53,6 +57,15 @@ export function useGameTheme(props) {
       return { color: '#6b6b6b', textShadow: '0 0 14px rgba(255,255,255,0.8), 0 1px 5px rgba(255,255,255,0.65)' }
     }
     return { color: '#6b6b6b' }
+  })
+
+  const hudTextStyle = computed(() => {
+    const color = typography.value.title_color
+    return color ? { ...baseHudTextStyle.value, color } : baseHudTextStyle.value
+  })
+  const hudSubTextStyle = computed(() => {
+    const color = typography.value.text_color
+    return color ? { ...baseHudSubTextStyle.value, color } : baseHudSubTextStyle.value
   })
 
   // Superfícies opacas (cards, alternativas, bolinha do ícone): escurecem
@@ -67,7 +80,7 @@ export function useGameTheme(props) {
   const cardMutedClass = computed(() => (isDarkTheme.value ? 'text-white/55' : 'text-ink-soft'))
   const cardMuted2Class = computed(() => (isDarkTheme.value ? 'text-white/70' : 'text-ink-muted'))
 
-  const containerStyle = computed(() => {
+  const baseContainerStyle = computed(() => {
     const dark = isDarkTheme.value
     if (hasBackgroundImage.value) {
       // Cortina na cor do próprio tema por cima da foto — deixa a imagem ainda
@@ -93,6 +106,8 @@ export function useGameTheme(props) {
         : 'radial-gradient(circle at 20% 20%, #d9e8e6 0%, #fcf8f5 45%, #f6f2e9 100%)',
     }
   })
+
+  const containerStyle = computed(() => ({ ...baseContainerStyle.value, ...typographyVars(typography.value) }))
 
   const startButtonText = computed(() => props.config?.start_button_text || 'Toque para começar')
   const startHintText = computed(() => props.config?.start_hint || 'Responda e veja sua pontuação no final')

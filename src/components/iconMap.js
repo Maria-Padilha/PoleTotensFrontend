@@ -19,6 +19,9 @@ import {
   Moon,
   Rainbow,
   ThumbsUp,
+  Clock,
+  Timer,
+  Crosshair,
 } from '@lucide/vue'
 
 // Catálogo curado de ícones pra tela inicial dos jogos (ex: avatar do Quiz
@@ -45,6 +48,9 @@ export const ICONS = [
   { key: 'moon', label: 'Lua', component: Moon },
   { key: 'rainbow', label: 'Arco-íris', component: Rainbow },
   { key: 'thumbs-up', label: 'Curtida', component: ThumbsUp },
+  { key: 'clock', label: 'Relógio', component: Clock },
+  { key: 'timer', label: 'Cronômetro', component: Timer },
+  { key: 'crosshair', label: 'Mira', component: Crosshair },
 ]
 
 export const ICON_MAP = Object.fromEntries(ICONS.map((i) => [i.key, i.component]))

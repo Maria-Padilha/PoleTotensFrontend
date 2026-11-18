@@ -47,7 +47,7 @@
               ? 'border-primary text-primary'
               : 'border-transparent text-ink-muted hover:text-ink'
           "
-          @click="tab = t.value"
+          @click="selectTab(t.value)"
         >
           <component :is="t.icon" :size="16" />
           {{ t.label }}
@@ -147,6 +147,7 @@
             :my-games="myGames"
             :game-def="gameDef"
             :event-id="event.id"
+            :event-appearance="event.appearance"
             :game-slug="selectedGameSlug"
             :error="instanceError"
             :saving="savingInstance"
@@ -161,6 +162,7 @@
             :form="instanceForm"
             :game-def="gameDef"
             :event-id="event.id"
+            :event-appearance="event.appearance"
             :game-slug="selectedGameSlug"
             :error="instanceError"
             :saving="savingInstance"
@@ -270,6 +272,57 @@
         </ul>
       </div>
 
+      <div v-else-if="tab === 'aparencia'" class="mt-6">
+        <EventAppearancePanel
+          :event="event"
+          :games="activeGames"
+          :instances="gameInstances"
+          @saved="handleAppearanceSaved"
+        />
+      </div>
+
+      <div v-else-if="tab === 'leads'" class="card mt-6 space-y-4">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 class="text-base font-bold text-ink">Leads captados</h3>
+            <p class="mt-1 text-sm text-ink-muted">
+              Dados de quem jogou em jogos com "Captar leads" ligado. {{ leads.length }}
+              {{ leads.length === 1 ? 'lead' : 'leads' }} até agora.
+            </p>
+          </div>
+          <button class="btn-primary" :disabled="!leads.length || downloadingLeads" @click="downloadLeads">
+            <Download :size="15" /> {{ downloadingLeads ? 'Baixando...' : 'Baixar lista (CSV)' }}
+          </button>
+        </div>
+
+        <p v-if="!leads.length" class="text-sm text-ink-muted">Nenhum lead captado ainda.</p>
+
+        <div v-else class="overflow-x-auto">
+          <table class="w-full min-w-[640px] text-left text-sm">
+            <thead>
+              <tr class="border-b border-ink/10 text-xs uppercase tracking-wider text-ink-soft">
+                <th class="py-2 pr-4">Nome</th>
+                <th class="py-2 pr-4">Telefone</th>
+                <th class="py-2 pr-4">E-mail</th>
+                <th class="py-2 pr-4">Instagram</th>
+                <th class="py-2 pr-4">Jogo</th>
+                <th class="py-2">Capturado em</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="lead in leads" :key="lead.id" class="border-b border-ink/5">
+                <td class="py-2 pr-4 font-bold text-ink">{{ lead.name }}</td>
+                <td class="py-2 pr-4">{{ lead.phone }}</td>
+                <td class="py-2 pr-4">{{ lead.email || '—' }}</td>
+                <td class="py-2 pr-4">{{ lead.instagram || '—' }}</td>
+                <td class="py-2 pr-4">{{ lead.game }}</td>
+                <td class="py-2 whitespace-nowrap">{{ lead.captured_at }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <div v-else-if="tab === 'midia'" class="card mt-6 space-y-4">
         <div>
           <h3 class="text-base font-bold text-ink">Recap do evento</h3>
@@ -338,6 +391,9 @@ import {
   Link2,
   Check,
   Sparkles,
+  Users,
+  Download,
+  Palette,
 } from '@lucide/vue'
 import api from '@/services/api'
 import AppShell from '@/layouts/AppShell.vue'
@@ -345,6 +401,7 @@ import { getGameDefinition } from '@/games/registry'
 import HighlightedText from '@/components/HighlightedText.vue'
 import GameInstanceForm from '@/components/GameInstanceForm.vue'
 import AudioUploadField from '@/components/AudioUploadField.vue'
+import EventAppearancePanel from '@/components/EventAppearancePanel.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -352,6 +409,13 @@ const router = useRouter()
 const event = ref(null)
 const allTotems = ref([])
 const tab = ref('info')
+
+// recarrega os leads toda vez que a aba abre — chegam o evento inteiro
+// enquanto os totens estão rodando.
+function selectTab(value) {
+  tab.value = value
+  if (value === 'leads') loadLeads()
+}
 const saving = ref(false)
 const linking = ref(false)
 const error = ref('')
@@ -370,14 +434,24 @@ const origin = window.location.origin
 const recap = ref(null)
 const recapMusicUrl = ref('')
 const generatingRecap = ref(false)
+const leads = ref([])
+const downloadingLeads = ref(false)
 
 // enquanto o form de criar/editar tá aberto, esconde a lista de cards inteira
 // (inclusive o botão "Adicionar jogo") — evita a confusão de outros jogos
 // aparecendo junto do que está sendo editado.
 const isInstanceFormOpen = computed(() => showInstanceForm.value || Boolean(editingInstance.value))
 
+// depois de salvar a aparência (e, se pedido, replicar nos jogos), recarrega evento e jogos
+async function handleAppearanceSaved() {
+  await Promise.all([loadEvent(), loadGameInstances()])
+}
+
 function defaultInstanceConfig() {
   return {
+    typography: {},
+    timing: {},
+    zone: {},
     theme: 'claro',
     primary_color: '#10939b',
     background_url: '',
@@ -394,6 +468,7 @@ function defaultInstanceConfig() {
     lose_message: '',
     neutral_message: '',
     sound_enabled: true,
+    capture_leads: false,
     questions: [],
     statements: [],
     words: [],
@@ -411,8 +486,10 @@ const instanceForm = reactive({
 
 const tabs = [
   { value: 'info', label: 'Informações', icon: Info },
-  { value: 'jogos', label: 'Jogos', icon: Gamepad2 },
   { value: 'totens', label: 'Totens', icon: Monitor },
+  { value: 'jogos', label: 'Jogos', icon: Gamepad2 },
+  { value: 'aparencia', label: 'Aparência', icon: Palette },
+  { value: 'leads', label: 'Leads', icon: Users },
   { value: 'midia', label: 'Mídia', icon: ImageIcon },
 ]
 
@@ -447,6 +524,18 @@ const form = reactive({
   description: '',
   access_password: '',
 })
+
+// jogos ativos do evento, no formato que a tela do totem recebe (usado na prévia da aparência)
+const activeGames = computed(() =>
+  gameInstances.value
+    .filter((instance) => instance.is_active)
+    .map((instance) => ({
+      id: instance.id,
+      title: instance.title,
+      config: instance.config || {},
+      game: { name: instance.game?.name || 'Jogo', slug: instance.game?.slug || '' },
+    }))
+)
 
 const availableTotems = computed(() => {
   const linkedIds = new Set((event.value?.totems || []).map((t) => t.id))
@@ -614,6 +703,26 @@ async function handleDeleteInstance(instance) {
 async function handleGeneratePreview(instance) {
   const { data } = await api.post(`/game-instances/${instance.id}/preview`)
   previewLinks[instance.id] = `${window.location.origin}${data.preview_path}`
+}
+
+async function loadLeads() {
+  const { data } = await api.get(`/events/${route.params.id}/leads`)
+  leads.value = data.leads
+}
+
+async function downloadLeads() {
+  downloadingLeads.value = true
+  try {
+    const response = await api.get(`/events/${route.params.id}/leads/export`, { responseType: 'blob' })
+    const url = URL.createObjectURL(response.data)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `leads-${event.value.slug || event.value.id}.csv`
+    link.click()
+    URL.revokeObjectURL(url)
+  } finally {
+    downloadingLeads.value = false
+  }
 }
 
 async function loadRecap() {

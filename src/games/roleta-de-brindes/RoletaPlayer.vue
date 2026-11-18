@@ -1,5 +1,5 @@
 <template>
-  <div class="relative min-h-screen overflow-hidden" :style="containerStyle">
+  <div class="game-typo relative min-h-screen overflow-hidden" :style="containerStyle">
     <!-- brilho clean nas bordas: acende ao parar a roleta -->
     <div class="pointer-events-none fixed inset-0 z-40 transition-all duration-700 ease-out" :style="glowStyle" />
 

@@ -21,23 +21,36 @@
           class="font-elegant text-5xl font-bold leading-tight sm:text-7xl"
           :style="{ color: isDarkTheme ? '#ffffff' : '#2b2b2b' }"
         >
-          {{ instance.title }}
+          <HighlightedText :text="instance.title" :color="accentColor" />
         </h1>
         <p class="mt-4 text-lg sm:text-2xl" :style="{ color: isDarkTheme ? 'rgba(255,255,255,0.75)' : '#6b6b6b' }">
           Antes de começar, qual seu nome?
         </p>
         <form class="mt-9 flex w-full max-w-md flex-col items-center gap-4" @submit.prevent="startGame">
           <input
+            v-if="!captureLeads"
             v-model="playerName"
             type="text"
             placeholder="Seu nome"
             maxlength="60"
             required
             autofocus
+            name="play-nome"
+            autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-form-type="other"
             class="w-full rounded-2xl border-2 bg-white px-6 py-5 text-center text-2xl font-bold text-ink shadow-lg
               outline-none sm:text-3xl"
             :style="{ borderColor: accentColor }"
           />
+          <LeadFields
+            v-else
+            :name="playerName"
+            :lead="leadForm"
+            :dark="isDarkTheme"
+            :accent="accentColor"
+            @update:name="playerName = $event"
+            @update:lead="Object.assign(leadForm, $event)"
+          />
+          <p v-if="leadError" class="text-base font-bold text-danger">{{ leadError }}</p>
           <button
             type="submit"
             class="rounded-2xl px-16 py-6 text-2xl font-bold text-white shadow-xl transition-transform
@@ -58,6 +71,7 @@
           :title="instance.title"
           :config="instance.config"
           :top-inset="0"
+          v-bind="gameDef.wantsPublicToken ? { publicToken: route.params.token } : {}"
           @finished="handleFinished"
         />
         <button
@@ -74,19 +88,25 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+import HighlightedText from '@/components/HighlightedText.vue'
 import api from '@/services/api'
+import { uploadKaraokeRecording } from '@/services/karaoke'
+import LeadFields from '@/components/LeadFields.vue'
 import { getGameDefinition } from '@/games/registry'
 
 const route = useRoute()
 const loading = ref(true)
 const instance = ref(null)
 const playerName = ref('')
+const leadForm = reactive({ email: '', phone: '', instagram: '' })
+const leadError = ref('')
 const stage = ref('name')
 const roundKey = ref(0)
 
 const gameDef = computed(() => (instance.value ? getGameDefinition(instance.value.game.slug) : null))
+const captureLeads = computed(() => Boolean(instance.value?.config?.capture_leads))
 const accentColor = computed(() => instance.value?.config?.primary_color || '#10939b')
 const isDarkTheme = computed(() => instance.value?.config?.theme === 'escuro')
 
@@ -115,6 +135,11 @@ async function load() {
 
 function startGame() {
   if (!playerName.value.trim()) return
+  if (captureLeads.value && leadForm.phone.replace(/\D/g, '').length < 10) {
+    leadError.value = 'Informe um telefone válido, com DDD.'
+    return
+  }
+  leadError.value = ''
   stage.value = 'playing'
 }
 
@@ -122,18 +147,36 @@ function startGame() {
 // convidado sem precisar reabrir nada.
 function switchPlayer() {
   playerName.value = ''
+  leadForm.email = ''
+  leadForm.phone = ''
+  leadForm.instagram = ''
   stage.value = 'name'
   roundKey.value += 1
 }
 
 async function handleFinished(payload) {
   try {
-    await api.post(`/play/${route.params.token}/plays`, {
+    const metadata = payload?.timing
+      ? { target: payload.timing.target, stopped: payload.timing.stopped, diff: payload.timing.diff }
+      : payload?.run
+        ? { cleared: payload.run.cleared, precision: payload.run.precision, misses: payload.run.misses }
+        : payload?.song
+          ? { song: payload.song.title, song_id: payload.song.id }
+          : payload?.won !== null && payload?.won !== undefined
+        ? { won: payload.won }
+        : null
+
+    const { data } = await api.post(`/play/${route.params.token}/plays`, {
       player_name: playerName.value.trim(),
       score: payload?.score ?? null,
-      metadata: payload?.won !== null && payload?.won !== undefined ? { won: payload.won } : null,
+      lead: captureLeads.value ? { ...leadForm } : undefined,
+      metadata,
       client_uuid: crypto.randomUUID(),
     })
+
+    if (payload?.recording && data?.recording_token) {
+      uploadKaraokeRecording(route.params.token, data.id, data.recording_token, payload.recording).catch(() => {})
+    }
   } catch (err) {
     // silencioso: não travar a experiência do convidado por causa de rede
   }

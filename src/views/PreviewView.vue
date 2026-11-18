@@ -55,7 +55,7 @@
         <div class="w-full max-w-md rounded-3xl bg-white/95 p-8 text-center shadow-2xl backdrop-blur">
           <span class="badge mx-auto">{{ preview.game.name }}</span>
           <h1 class="mt-3 text-3xl" :style="{ color: preview.config.primary_color || undefined }">
-            {{ preview.title }}
+            <HighlightedText :text="preview.title" :color="preview.config.primary_color || '#10939b'" />
           </h1>
 
           <div v-if="preview.config.timer_seconds" class="mt-6 inline-flex flex-col items-center">
@@ -83,6 +83,7 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { Sparkles, Clock } from '@lucide/vue'
+import HighlightedText from '@/components/HighlightedText.vue'
 import api from '@/services/api'
 import { getGameDefinition } from '@/games/registry'
 
