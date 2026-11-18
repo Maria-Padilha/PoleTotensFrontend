@@ -2,13 +2,25 @@
   <div class="space-y-4">
     <div class="flex items-center justify-between">
       <label class="text-sm font-bold text-ink">Músicas do karaokê</label>
-      <button type="button" class="btn-outline !px-3 !py-1.5 text-xs" @click="addSong">
-        <Plus :size="14" /> Adicionar música
-      </button>
+      <div class="flex flex-wrap gap-2">
+        <button type="button" class="btn-outline !px-3 !py-1.5 text-xs" @click="libraryOpen = true">
+          <Library :size="14" /> Escolher da biblioteca
+        </button>
+        <button type="button" class="btn-outline !px-3 !py-1.5 text-xs" @click="addSong">
+          <Plus :size="14" /> Adicionar nova
+        </button>
+      </div>
     </div>
 
+    <KaraokeLibraryModal
+      v-if="libraryOpen"
+      :used-audio-urls="songs.map((s) => s.audio_url)"
+      @select="addFromLibrary"
+      @close="libraryOpen = false"
+    />
+
     <p v-if="songs.length === 0" class="text-sm text-ink-muted">
-      Nenhuma música ainda. Adicione ao menos uma.
+      Nenhuma música ainda. Escolha uma da biblioteca ou adicione uma nova.
     </p>
 
     <div v-for="(song, index) in songs" :key="song.id" class="rounded-xl border border-ink/10 p-4">
@@ -135,7 +147,8 @@
 
 <script setup>
 import { computed, ref } from 'vue'
-import { Plus, Trash2, ChevronDown, ChevronRight, Timer, Headphones } from '@lucide/vue'
+import { Plus, Trash2, ChevronDown, ChevronRight, Timer, Headphones, Library } from '@lucide/vue'
+import KaraokeLibraryModal from './KaraokeLibraryModal.vue'
 import KaraokeLyricsSync from './KaraokeLyricsSync.vue'
 import KaraokePreview from './KaraokePreview.vue'
 import { songColor } from './songColors'
@@ -158,6 +171,7 @@ const songs = computed({
 const expandedIds = ref(new Set())
 const syncingId = ref(null)
 const testingId = ref(null)
+const libraryOpen = ref(false)
 
 function applySync(song, lrc) {
   song.lyrics = lrc
@@ -195,6 +209,22 @@ function addSong() {
   }
   songs.value = [...songs.value, song]
   expandedIds.value = new Set([...expandedIds.value, song.id])
+}
+
+// Copia a música da biblioteca pro evento: mesmo áudio (mesmo link no R2, nada é reenviado)
+// e a sincronização já pronta.
+function addFromLibrary(entry) {
+  const song = {
+    id: `s_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+    title: entry.title,
+    artist: entry.artist || '',
+    audio_url: entry.audio_url,
+    lyrics: entry.lyrics || '',
+    offset: Number(entry.offset) || 0,
+    color: entry.color || '',
+  }
+  songs.value = [...songs.value, song]
+  libraryOpen.value = false
 }
 
 function removeSong(index) {

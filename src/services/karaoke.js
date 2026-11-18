@@ -11,3 +11,25 @@ export async function uploadKaraokeRecording(publicToken, playId, recordingToken
     headers: { 'Content-Type': 'multipart/form-data' },
   })
 }
+
+export async function fetchKaraokeLibrary() {
+  const { data } = await api.get('/karaoke-songs')
+  return data.data
+}
+
+export async function deleteKaraokeLibrarySong(id) {
+  await api.delete(`/karaoke-songs/${id}`)
+}
+
+export async function saveKaraokeLibrarySong(song) {
+  const payload = {
+    title: song.title,
+    artist: song.artist || null,
+    audio_url: song.audio_url,
+    lyrics: song.lyrics || null,
+    color: song.color || null,
+    offset: Number(song.offset) || 0,
+  }
+  const { data } = song.id ? await api.put(`/karaoke-songs/${song.id}`, payload) : await api.post('/karaoke-songs', payload)
+  return data.data
+}

@@ -91,7 +91,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { LayoutGrid, Ticket, Monitor, Gamepad2, Inbox, LogOut, Menu, X } from '@lucide/vue'
+import { LayoutGrid, Ticket, Monitor, Gamepad2, Music, Inbox, LogOut, Menu, X } from '@lucide/vue'
 import { useAuthStore } from '@/stores/auth'
 import BrandMark from '@/components/BrandMark.vue'
 
@@ -106,6 +106,7 @@ const allNavItems = [
   { name: 'eventos', label: 'Eventos', icon: Ticket },
   { name: 'totens', label: 'Totens', icon: Monitor },
   { name: 'jogos', label: 'Jogos', icon: Gamepad2 },
+  { name: 'musicas', label: 'Músicas', icon: Music },
   { name: 'orcamentos', label: 'Orçamentos', icon: Inbox, adminOnly: true },
 ]
 

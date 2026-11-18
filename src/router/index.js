@@ -45,6 +45,12 @@ const routes = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/musicas',
+    name: 'musicas',
+    component: () => import('@/views/KaraokeSongsView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/orcamentos',
     name: 'orcamentos',
     component: () => import('@/views/QuoteRequestsView.vue'),
