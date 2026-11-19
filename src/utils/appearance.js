@@ -56,6 +56,7 @@ export const DEFAULT_APPEARANCE = {
   card_radius: 'round', // round | soft | square
   icon_size: 100, // % do tamanho padrão do ícone
   game_name_size: 100, // % do tamanho padrão do nome do jogo
+  ranking_style: 'auto', // botões de ranking: auto (segue os cartões) | glass | accent
   show_game_type: true, // etiqueta com o tipo do jogo (ex.: "JOGO DA MEMÓRIA")
   title_glow: false, // brilho na cor de destaque em volta do título
   fx_float: false, // cartões flutuando de leve

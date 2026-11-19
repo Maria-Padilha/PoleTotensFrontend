@@ -114,6 +114,26 @@
         </div>
       </section>
 
+      <section class="space-y-3">
+        <h4 class="text-sm font-extrabold uppercase tracking-wider text-primary-600">Botões de ranking</h4>
+        <div class="field">
+          <label>Estilo dos botões "Ranking geral" e "Ranking por jogo"</label>
+          <div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <button
+              v-for="option in rankingStyles"
+              :key="option.value"
+              type="button"
+              class="rounded-xl border px-3 py-2.5 text-left transition-colors"
+              :class="form.ranking_style === option.value ? 'border-primary bg-primary-50 text-primary-700' : 'border-ink/10 text-ink-muted hover:border-primary'"
+              @click="form.ranking_style = option.value"
+            >
+              <span class="block text-sm font-bold">{{ option.label }}</span>
+              <span class="block text-[11px] font-normal leading-tight opacity-80">{{ option.hint }}</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
       <!-- visual da lista de jogos -->
       <section class="space-y-5">
         <h4 class="text-sm font-extrabold uppercase tracking-wider text-primary-600">Lista de jogos: layout e tamanhos</h4>
@@ -300,6 +320,11 @@ const layouts = [
   { value: 'grid2', label: 'Grade 2 colunas', hint: 'Cartões lado a lado' },
   { value: 'grid3', label: 'Grade 3 colunas', hint: 'Ideal para muitos jogos' },
   { value: 'poster', label: 'Pôster', hint: 'Cartões grandes com ícone enorme' },
+]
+const rankingStyles = [
+  { value: 'auto', label: 'Igual aos cartões', hint: 'Segue o estilo escolhido acima' },
+  { value: 'glass', label: 'Vidro', hint: 'Translúcido, independente dos cartões' },
+  { value: 'accent', label: 'Cor de destaque', hint: 'Botões sólidos na cor de destaque' },
 ]
 const radii = [
   { value: 'round', label: 'Redondos' },

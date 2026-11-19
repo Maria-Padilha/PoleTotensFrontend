@@ -72,7 +72,7 @@
           :style="[cardStyleFor(i), { '--i': i + 5, padding: spec.pad, gap: spec.cardGap, minHeight: spec.minHeight }]"
           @click="$emit('pick', game)"
         >
-          <span v-if="ap.fx_shine" class="ew-shine" :style="{ animationDelay: `${(i % 6) * 0.7}s` }" aria-hidden="true" />
+          <span v-if="ap.fx_shine" class="ew-shine" :style="{ animationDelay: `${i * 0.45}s` }" aria-hidden="true" />
 
           <span
             class="relative flex shrink-0 items-center justify-center rounded-full text-white shadow-lg"
@@ -226,14 +226,29 @@ const cardStyle = computed(() => ({
   WebkitBackdropFilter: card.value.blur ? 'blur(18px) saturate(1.2)' : 'none',
 }))
 
+// Botões "Ranking geral / por jogo": por padrão seguem o estilo dos cartões, mas dá pra
+// deixá-los em vidro (ou na cor de destaque) independente dos cartões.
+const pillColors = computed(() => {
+  const a = ap.value
+  if (a.ranking_style === 'glass') {
+    return a.onDarkBg
+      ? { bg: 'rgba(255, 255, 255, 0.16)', border: 'rgba(255, 255, 255, 0.38)', text: '#ffffff', blur: true }
+      : { bg: 'rgba(255, 255, 255, 0.62)', border: 'rgba(255, 255, 255, 0.85)', text: '#16282b', blur: true }
+  }
+  if (a.ranking_style === 'accent') {
+    return { bg: a.accent_color, border: 'rgba(255, 255, 255, 0.4)', text: '#ffffff', blur: false }
+  }
+  return { bg: isColorful.value ? a.accent_color : card.value.bg, border: card.value.border, text: card.value.text, blur: card.value.blur }
+})
+
 const pillStyle = computed(() => ({
-  backgroundColor: isColorful.value ? ap.value.accent_color : card.value.bg,
-  borderColor: card.value.border,
-  color: card.value.text,
+  backgroundColor: pillColors.value.bg,
+  borderColor: pillColors.value.border,
+  color: pillColors.value.text,
   fontFamily: fontStack(ap.value.text_font),
   letterSpacing: `${ap.value.text_spacing}em`,
-  backdropFilter: card.value.blur ? 'blur(14px)' : 'none',
-  WebkitBackdropFilter: card.value.blur ? 'blur(14px)' : 'none',
+  backdropFilter: pillColors.value.blur ? 'blur(14px) saturate(1.2)' : 'none',
+  WebkitBackdropFilter: pillColors.value.blur ? 'blur(14px) saturate(1.2)' : 'none',
 }))
 
 // nome do jogo: usa a fonte dos textos; só troca a cor se o organizador escolheu uma
@@ -458,25 +473,33 @@ const particles = computed(() => {
   animation-delay: calc(var(--i, 0) * 90ms), calc(0.9s + var(--i, 0) * 280ms);
 }
 
-/* efeito: brilho que atravessa o cartão */
+/* efeito: reflexo suave que atravessa o cartão, um após o outro (como uma onda de luz) */
 @keyframes ew-shine {
   0% {
-    transform: translateX(-160%) skewX(-20deg);
+    background-position: 160% 0;
   }
-  35%,
+  32%,
   100% {
-    transform: translateX(380%) skewX(-20deg);
+    background-position: -60% 0;
   }
 }
 .ew-shine {
   position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  width: 28%;
+  inset: 0;
   pointer-events: none;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent);
-  animation: ew-shine 4.2s ease-in-out infinite;
+  border-radius: inherit;
+  background: linear-gradient(
+    105deg,
+    transparent 38%,
+    rgba(255, 255, 255, 0.1) 44%,
+    rgba(255, 255, 255, 0.34) 50%,
+    rgba(255, 255, 255, 0.1) 56%,
+    transparent 62%
+  );
+  background-size: 260% 100%;
+  background-repeat: no-repeat;
+  background-position: 160% 0;
+  animation: ew-shine 6s ease-in-out infinite;
 }
 
 /* efeito: anel pulsando em volta do ícone e do botão */
