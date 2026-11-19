@@ -81,33 +81,36 @@
         <Mic :size="46" />
       </span>
       <h1 class="font-elegant mt-8 text-5xl font-bold sm:text-7xl" :style="hudTextStyle">Escolha a música</h1>
-      <div class="mt-12 flex w-full max-w-3xl flex-col gap-5">
+      <!-- quadrados lado a lado: título e artista completos (quebram de linha, sem cortar) -->
+      <div class="mt-10 flex w-full max-w-5xl flex-wrap justify-center gap-4 sm:gap-5">
         <button
           v-for="(song, index) in songs"
           :key="song.id"
           type="button"
-          class="flex items-center gap-6 rounded-[2rem] border-2 px-8 py-7 text-left shadow-xl transition-transform
-            active:scale-[0.98] sm:px-10 sm:py-8"
+          class="flex min-h-[11rem] basis-[calc(50%-0.5rem)] flex-col items-start justify-between gap-3 rounded-3xl border-2 p-4
+            text-left shadow-lg transition-transform active:scale-[0.97] sm:min-h-[13rem] sm:basis-[calc(33.333%-0.9rem)] sm:p-5"
           :style="songCardStyle(song, index)"
           @click="selectSong(song)"
         >
-          <span
-            class="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl text-2xl font-extrabold text-white shadow-md sm:h-20 sm:w-20"
-            :style="{ backgroundColor: songColor(song, index) }"
-          >
-            {{ index + 1 }}
-          </span>
-          <span class="min-w-0 flex-1">
-            <span class="block truncate text-3xl font-bold sm:text-4xl" :class="cardTextClass">{{ song.title }}</span>
-            <span v-if="song.artist" class="mt-1 block truncate text-lg sm:text-2xl" :class="cardMutedClass">
-              {{ song.artist }}
+          <span class="flex w-full items-center justify-between">
+            <span
+              class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-xl font-extrabold text-white shadow-md sm:h-12 sm:w-12"
+              :style="{ backgroundColor: songColor(song, index) }"
+            >
+              {{ index + 1 }}
+            </span>
+            <span
+              class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white shadow-md sm:h-11 sm:w-11"
+              :style="{ backgroundColor: songColor(song, index) }"
+            >
+              <Play :size="18" class="translate-x-0.5 fill-current" />
             </span>
           </span>
-          <span
-            class="flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-white shadow-md sm:h-16 sm:w-16"
-            :style="{ backgroundColor: songColor(song, index) }"
-          >
-            <Play :size="26" class="translate-x-0.5 fill-current" />
+          <span class="block w-full min-w-0">
+            <span class="block break-words text-xl font-bold leading-tight sm:text-2xl" :class="cardTextClass">{{ song.title }}</span>
+            <span v-if="song.artist" class="mt-1 block break-words text-base leading-snug sm:text-lg" :class="cardMutedClass">
+              {{ song.artist }}
+            </span>
           </span>
         </button>
       </div>
