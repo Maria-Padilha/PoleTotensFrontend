@@ -114,6 +114,99 @@
         </div>
       </section>
 
+      <!-- visual da lista de jogos -->
+      <section class="space-y-5">
+        <h4 class="text-sm font-extrabold uppercase tracking-wider text-primary-600">Lista de jogos: layout e tamanhos</h4>
+
+        <div class="field">
+          <label>Layout dos jogos</label>
+          <div class="grid grid-cols-2 gap-2 sm:grid-cols-5">
+            <button
+              v-for="option in layouts"
+              :key="option.value"
+              type="button"
+              class="rounded-xl border px-3 py-2.5 text-left transition-colors"
+              :class="form.games_layout === option.value ? 'border-primary bg-primary-50 text-primary-700' : 'border-ink/10 text-ink-muted hover:border-primary'"
+              @click="form.games_layout = option.value"
+            >
+              <span class="block text-sm font-bold">{{ option.label }}</span>
+              <span class="block text-[11px] font-normal leading-tight opacity-80">{{ option.hint }}</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div class="field">
+            <label for="ap-icon-size">Tamanho do ícone: {{ form.icon_size }}%</label>
+            <input id="ap-icon-size" v-model.number="form.icon_size" type="range" min="60" max="180" step="5" class="!p-0" />
+          </div>
+          <div class="field">
+            <label for="ap-name-size">Tamanho do nome do jogo: {{ form.game_name_size }}%</label>
+            <input id="ap-name-size" v-model.number="form.game_name_size" type="range" min="60" max="180" step="5" class="!p-0" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div class="field">
+            <label>Cantos dos cartões</label>
+            <div class="grid grid-cols-3 gap-2">
+              <button
+                v-for="option in radii"
+                :key="option.value"
+                type="button"
+                class="rounded-xl border px-3 py-2.5 text-sm font-bold transition-colors"
+                :class="form.card_radius === option.value ? 'border-primary bg-primary-50 text-primary-700' : 'border-ink/10 text-ink-muted hover:border-primary'"
+                @click="form.card_radius = option.value"
+              >
+                {{ option.label }}
+              </button>
+            </div>
+          </div>
+          <div class="field">
+            <label>Etiqueta com o tipo do jogo</label>
+            <label class="flex cursor-pointer items-center gap-2.5 rounded-xl border border-ink/10 px-3.5 py-2.5 text-sm">
+              <input v-model="form.show_game_type" type="checkbox" class="h-4 w-4 accent-primary" />
+              <span>Mostrar (ex.: "JOGO DA MEMÓRIA" embaixo do nome)</span>
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <!-- efeitos -->
+      <section class="space-y-4">
+        <h4 class="text-sm font-extrabold uppercase tracking-wider text-primary-600">Efeitos e animações</h4>
+        <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <label
+            v-for="fx in effects"
+            :key="fx.key"
+            class="flex cursor-pointer items-start gap-2.5 rounded-xl border px-3.5 py-2.5 text-sm transition-colors"
+            :class="form[fx.key] ? 'border-primary bg-primary-50' : 'border-ink/10'"
+          >
+            <input v-model="form[fx.key]" type="checkbox" class="mt-0.5 h-4 w-4 shrink-0 accent-primary" />
+            <span>
+              <strong class="block text-ink">{{ fx.label }}</strong>
+              <span class="text-xs text-ink-muted">{{ fx.hint }}</span>
+            </span>
+          </label>
+        </div>
+
+        <div class="field">
+          <label>Partículas no fundo</label>
+          <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <button
+              v-for="option in particleOptions"
+              :key="option.value"
+              type="button"
+              class="rounded-xl border px-3 py-2.5 text-sm font-bold transition-colors"
+              :class="form.fx_particles === option.value ? 'border-primary bg-primary-50 text-primary-700' : 'border-ink/10 text-ink-muted hover:border-primary'"
+              @click="form.fx_particles = option.value"
+            >
+              {{ option.label }}
+            </button>
+          </div>
+        </div>
+      </section>
+
       <!-- replicar nos jogos -->
       <section class="space-y-3 rounded-xl border border-ink/10 bg-app-bg p-4">
         <h4 class="text-sm font-extrabold uppercase tracking-wider text-primary-600">Aplicar também nos jogos?</h4>
@@ -198,6 +291,32 @@ const cardStyles = [
   { value: 'light', label: 'Claro' },
   { value: 'dark', label: 'Escuro' },
   { value: 'fun', label: '🎮 Divertido (colorido)' },
+  { value: 'gradient', label: '🌈 Degradê da cor de destaque' },
+  { value: 'neon', label: '✨ Neon (borda brilhante)' },
+]
+const layouts = [
+  { value: 'auto', label: 'Automático', hint: 'Lista até 4 jogos, grade acima disso' },
+  { value: 'list', label: 'Lista', hint: 'Um jogo por linha' },
+  { value: 'grid2', label: 'Grade 2 colunas', hint: 'Cartões lado a lado' },
+  { value: 'grid3', label: 'Grade 3 colunas', hint: 'Ideal para muitos jogos' },
+  { value: 'poster', label: 'Pôster', hint: 'Cartões grandes com ícone enorme' },
+]
+const radii = [
+  { value: 'round', label: 'Redondos' },
+  { value: 'soft', label: 'Suaves' },
+  { value: 'square', label: 'Retos' },
+]
+const effects = [
+  { key: 'title_glow', label: 'Título brilhando', hint: 'Brilho na cor de destaque em volta do nome do evento' },
+  { key: 'fx_float', label: 'Cartões flutuando', hint: 'Os cartões balançam de leve, chamando atenção' },
+  { key: 'fx_shine', label: 'Brilho passando', hint: 'Um reflexo de luz atravessa os cartões' },
+  { key: 'fx_glow', label: 'Ícones pulsando', hint: 'Anel pulsante no ícone e no botão de jogar' },
+]
+const particleOptions = [
+  { value: 'none', label: 'Nenhuma' },
+  { value: 'bubbles', label: '🫧 Bolhas' },
+  { value: 'stars', label: '✦ Estrelas' },
+  { value: 'confetti', label: '🎉 Confete' },
 ]
 
 const form = reactive({ ...DEFAULT_APPEARANCE })

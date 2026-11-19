@@ -51,6 +51,17 @@ export const DEFAULT_APPEARANCE = {
   accent_color: '#10939b',
   card_style: 'auto',
   welcome_text: 'Escolha um jogo pra começar',
+  // visual da lista de jogos
+  games_layout: 'auto', // auto | list | grid2 | grid3 | poster
+  card_radius: 'round', // round | soft | square
+  icon_size: 100, // % do tamanho padrão do ícone
+  game_name_size: 100, // % do tamanho padrão do nome do jogo
+  show_game_type: true, // etiqueta com o tipo do jogo (ex.: "JOGO DA MEMÓRIA")
+  title_glow: false, // brilho na cor de destaque em volta do título
+  fx_float: false, // cartões flutuando de leve
+  fx_shine: false, // brilho que atravessa os cartões
+  fx_glow: false, // ícones e botões pulsando
+  fx_particles: 'none', // none | bubbles | stars | confetti
 }
 
 export function fontOption(name) {
