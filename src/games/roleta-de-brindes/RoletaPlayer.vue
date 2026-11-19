@@ -336,9 +336,11 @@ function triggerFlash(kind) {
 
 function spin() {
   if (spinning.value || !hasPrizes.value) return
+  const isRepeat = result.value !== null
   spinning.value = true
   result.value = null
-  emit('restarted')
+  // só o "Girar de novo" conta como jogar novamente; o primeiro giro é a própria partida
+  if (isRepeat) emit('restarted')
 
   const index = pickPrizeIndex()
   const mid = index * sliceAngle.value + sliceAngle.value / 2

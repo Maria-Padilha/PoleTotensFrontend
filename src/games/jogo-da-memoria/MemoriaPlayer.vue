@@ -452,11 +452,12 @@ function start() {
   resetTurn()
   phase.value = 'playing'
   startTimer()
-  emit('restarted')
 }
 
+// "Jogar novamente": avisa o totem (que volta pra escolha de quem joga). O início normal não avisa.
 function restart() {
   start()
+  emit('restarted')
 }
 
 function backToStart() {
