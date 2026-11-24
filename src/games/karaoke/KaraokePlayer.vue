@@ -381,6 +381,8 @@ const prepareError = ref('')
 const result = ref({ score: null })
 const shownScore = ref(0)
 
+// volume da música durante a apresentação (1 = máximo): um pouco abaixo pra voz do cantor aparecer
+const PERFORMANCE_VOLUME = 0.7
 let audio = null
 let rafId = null
 let runId = 0
@@ -437,9 +439,9 @@ function selectSong(song) {
   audio.play().then(() => {
     audio.pause()
     audio.currentTime = 0
-    audio.volume = 1
+    audio.volume = PERFORMANCE_VOLUME
   }).catch(() => {
-    audio.volume = 1
+    audio.volume = PERFORMANCE_VOLUME
   })
   beginPerformance(true)
 }
@@ -477,6 +479,7 @@ async function beginPerformance(askMic, withoutScore = false) {
   if (!audio || audio.src !== new URL(song.audio_url, window.location.href).href) {
     audio = new Audio(song.audio_url)
   }
+  audio.volume = PERFORMANCE_VOLUME
   audio.currentTime = 0
 
   await new Promise((resolve) => {
@@ -647,7 +650,7 @@ function stopPlayback() {
 }
 
 // Replay: a voz gravada toca junto com a música original, começando no mesmo
-// instante em que a gravação começou.
+// instante em que a gravação começou. A música fica baixinha (10%) pra voz do cantor aparecer.
 async function togglePlayback(row) {
   if (playingId.value === row.id) {
     stopPlayback()
@@ -659,7 +662,7 @@ async function togglePlayback(row) {
   voiceAudio = new Audio(row.recording_url)
   voiceAudio.volume = 1
   musicAudio = song ? new Audio(song.audio_url) : null
-  if (musicAudio) musicAudio.volume = 0.2
+  if (musicAudio) musicAudio.volume = 0.1
 
   playingId.value = row.id
   voiceAudio.onended = stopPlayback
