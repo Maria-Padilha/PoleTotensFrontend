@@ -208,7 +208,10 @@
 
       <p v-if="error" class="field-error">{{ error }}</p>
 
-      <div class="flex flex-wrap justify-end gap-3">
+      <div class="flex flex-wrap items-center justify-end gap-3">
+        <p v-if="autosaveText" class="mr-auto text-xs font-bold" :class="autosave.state === 'error' ? 'text-danger' : 'text-ink-muted'">
+          {{ autosaveText }}
+        </p>
         <button type="button" class="btn-outline" @click="$emit('cancel')">Cancelar</button>
         <button
           v-if="editing"
@@ -228,6 +231,7 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { Link2 } from '@lucide/vue'
 import HighlightPicker from '@/components/HighlightPicker.vue'
 import ImageUploadField from '@/components/ImageUploadField.vue'
@@ -248,6 +252,21 @@ const props = defineProps({
   error: { type: String, default: '' },
   saving: { type: Boolean, default: false },
   previewLink: { type: String, default: '' },
+  // estado do salvamento automático: { state: '' | 'pending' | 'saving' | 'saved' | 'draft' | 'error', at, message }
+  autosave: { type: Object, default: () => ({ state: '' }) },
+})
+
+const autosaveText = computed(() => {
+  const a = props.autosave
+  if (a.state === 'pending') return 'Alterações pendentes… salvando em instantes.'
+  if (a.state === 'saving') return 'Salvando automaticamente…'
+  if (a.state === 'saved') {
+    const time = a.at ? new Date(a.at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : ''
+    return `✓ Salvo automaticamente${time ? ` às ${time}` : ''}`
+  }
+  if (a.state === 'draft') return 'Rascunho guardado neste navegador. Clique em "Salvar jogo" para criar o jogo.'
+  if (a.state === 'error') return `Não foi possível salvar automaticamente (${a.message}). Suas alterações estão guardadas neste navegador; corrija e clique em "Aplicar alterações".`
+  return ''
 })
 
 defineEmits(['save', 'cancel', 'generate-preview'])

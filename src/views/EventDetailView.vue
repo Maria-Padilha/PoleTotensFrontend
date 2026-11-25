@@ -151,8 +151,9 @@
             :game-slug="selectedGameSlug"
             :error="instanceError"
             :saving="savingInstance"
+            :autosave="autosave"
             @save="handleSubmitInstance"
-            @cancel="closeInstanceForm"
+            @cancel="handleCancelInstance"
           />
 
           <GameInstanceForm
@@ -167,8 +168,9 @@
             :error="instanceError"
             :saving="savingInstance"
             :preview-link="previewLinks[editingInstance.id]"
+            :autosave="autosave"
             @save="handleSubmitInstance"
-            @cancel="closeInstanceForm"
+            @cancel="handleCancelInstance"
             @generate-preview="handleGeneratePreview(editingInstance)"
           />
 
@@ -377,7 +379,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, onBeforeUnmount, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   ArrowLeft,
@@ -648,6 +650,7 @@ function openCreateInstance() {
   instanceError.value = ''
   resetInstanceForm()
   showInstanceForm.value = true
+  startTrackingForm()
 }
 
 function openEditInstance(instance) {
@@ -659,12 +662,156 @@ function openEditInstance(instance) {
     ...instance.config,
   }
   showInstanceForm.value = true
+  startTrackingForm()
 }
 
 function closeInstanceForm() {
+  clearTimeout(autosaveTimer)
+  clearTimeout(draftTimer)
+  autosave.state = ''
   showInstanceForm.value = false
   editingInstance.value = null
 }
+
+// "Cancelar": se ainda há alterações que não chegaram ao servidor, pergunta antes de descartar.
+async function handleCancelInstance() {
+  if (isDirty() && !confirm('Há alterações que ainda não foram salvas. Descartar mesmo assim?')) return
+  if (isDirty()) removeDraft()
+  const wasEditing = Boolean(editingInstance.value)
+  closeInstanceForm()
+  if (wasEditing) await loadGameInstances() // o salvamento automático pode ter mudado o jogo
+}
+
+// ---- salvamento automático do jogo -----------------------------------------
+// Jogo existente: grava no servidor ~2,5 s depois da última alteração. Em qualquer caso (inclusive
+// jogo novo, que ainda não pode ser criado) guarda um rascunho neste navegador, pra não perder
+// o trabalho se a aba fechar, a internet cair ou o servidor recusar (ex.: música sem título).
+const AUTOSAVE_DELAY = 2500
+const DRAFT_MAX_AGE = 7 * 24 * 60 * 60 * 1000
+const autosave = reactive({ state: '', at: null, message: '' })
+let lastSavedSnapshot = ''
+let autosaveTimer = null
+let draftTimer = null
+
+const formSnapshot = () =>
+  JSON.stringify({
+    totem_id: instanceForm.totem_id,
+    user_game_id: instanceForm.user_game_id,
+    title: instanceForm.title,
+    config: instanceForm.config,
+  })
+const isDirty = () => isInstanceFormOpen.value && formSnapshot() !== lastSavedSnapshot
+const draftKey = () => `pole_draft_${route.params.id}_${editingInstance.value ? editingInstance.value.id : 'new'}`
+
+function writeDraft() {
+  try {
+    localStorage.setItem(draftKey(), JSON.stringify({ savedAt: Date.now(), form: JSON.parse(formSnapshot()) }))
+  } catch {
+    // sem espaço/permissão: o salvamento no servidor continua valendo
+  }
+}
+
+function removeDraft() {
+  try {
+    localStorage.removeItem(draftKey())
+  } catch {
+    // ignora
+  }
+}
+
+// chamado logo depois de preencher o formulário (criar/editar)
+function startTrackingForm() {
+  clearTimeout(autosaveTimer)
+  clearTimeout(draftTimer)
+  autosave.state = ''
+  lastSavedSnapshot = formSnapshot()
+
+  try {
+    const raw = localStorage.getItem(draftKey())
+    if (!raw) return
+    const draft = JSON.parse(raw)
+    if (!draft?.form || Date.now() - draft.savedAt > DRAFT_MAX_AGE || JSON.stringify(draft.form) === lastSavedSnapshot) {
+      removeDraft()
+      return
+    }
+    const when = new Date(draft.savedAt).toLocaleString('pt-BR')
+    if (confirm(`Encontramos alterações deste jogo que não foram salvas (de ${when}). Restaurar?`)) {
+      if (!editingInstance.value) {
+        instanceForm.totem_id = draft.form.totem_id
+        instanceForm.user_game_id = draft.form.user_game_id
+      }
+      instanceForm.title = draft.form.title
+      instanceForm.config = { ...defaultInstanceConfig(), ...draft.form.config }
+    } else {
+      removeDraft()
+    }
+  } catch {
+    removeDraft()
+  }
+}
+
+async function runAutosave() {
+  clearTimeout(autosaveTimer)
+  if (!editingInstance.value || !isDirty()) return
+  if (savingInstance.value || autosave.state === 'saving') {
+    autosaveTimer = setTimeout(runAutosave, 800)
+    return
+  }
+
+  const snapshot = formSnapshot()
+  const id = editingInstance.value.id
+  autosave.state = 'saving'
+  try {
+    const { data } = await api.put(`/game-instances/${id}`, { title: instanceForm.title, config: instanceForm.config })
+    if (editingInstance.value?.id === id) editingInstance.value = data.data
+    lastSavedSnapshot = snapshot
+    autosave.state = 'saved'
+    autosave.at = new Date()
+    if (!isDirty()) removeDraft()
+  } catch (err) {
+    autosave.state = 'error'
+    autosave.message =
+      err.response?.status === 422 ? 'há campos obrigatórios em branco' : err.response?.data?.message || 'sem conexão com o servidor'
+  }
+}
+
+watch(
+  () => [instanceForm.totem_id, instanceForm.user_game_id, instanceForm.title, instanceForm.config],
+  () => {
+    if (!isInstanceFormOpen.value) return
+    if (!isDirty()) return
+
+    clearTimeout(draftTimer)
+    draftTimer = setTimeout(writeDraft, 400)
+
+    if (!editingInstance.value) {
+      autosave.state = 'draft'
+      return
+    }
+    if (autosave.state !== 'saving') autosave.state = 'pending'
+    clearTimeout(autosaveTimer)
+    autosaveTimer = setTimeout(runAutosave, AUTOSAVE_DELAY)
+  },
+  { deep: true }
+)
+
+// fechar/atualizar a aba com alterações pendentes: avisa e tenta gravar antes de sair
+function handleBeforeUnload(e) {
+  if (!isDirty()) return
+  writeDraft()
+  runAutosave()
+  e.preventDefault()
+  e.returnValue = ''
+}
+
+onBeforeUnmount(() => {
+  window.removeEventListener('beforeunload', handleBeforeUnload)
+  if (isDirty()) {
+    writeDraft()
+    runAutosave() // sai da tela com alteração pendente: dispara o salvamento mesmo assim
+  }
+  clearTimeout(draftTimer)
+})
 
 async function handleSubmitInstance({ close = true } = {}) {
   instanceError.value = ''
@@ -685,6 +832,11 @@ async function handleSubmitInstance({ close = true } = {}) {
         config: instanceForm.config,
       })
     }
+    clearTimeout(autosaveTimer)
+    lastSavedSnapshot = formSnapshot()
+    removeDraft()
+    autosave.state = close ? '' : 'saved'
+    autosave.at = new Date()
     await loadGameInstances()
     if (close) closeInstanceForm()
   } catch (err) {
@@ -744,6 +896,7 @@ async function handleGenerateRecap() {
 }
 
 onMounted(async () => {
+  window.addEventListener('beforeunload', handleBeforeUnload)
   await Promise.all([loadEvent(), loadTotems(), loadMyGames(), loadRecap()])
   await loadGameInstances()
 })
