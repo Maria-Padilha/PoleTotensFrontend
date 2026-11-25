@@ -33,3 +33,9 @@ export async function saveKaraokeLibrarySong(song) {
   const { data } = song.id ? await api.put(`/karaoke-songs/${song.id}`, payload) : await api.post('/karaoke-songs', payload)
   return data.data
 }
+
+// Importa pra biblioteca as músicas que já estão nos jogos de karaokê dos eventos.
+export async function importKaraokeSongsFromGames() {
+  const { data } = await api.post('/karaoke-songs/import')
+  return data // { found, created }
+}

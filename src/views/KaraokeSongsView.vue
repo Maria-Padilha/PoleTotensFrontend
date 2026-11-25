@@ -9,8 +9,15 @@
             <strong>Escolher da biblioteca</strong>.
           </p>
         </div>
-        <button type="button" class="btn-primary shrink-0" @click="openForm(null)"><Plus :size="16" /> Adicionar música</button>
+        <div class="flex shrink-0 flex-wrap gap-2">
+          <button type="button" class="btn-outline" :disabled="importing" @click="importFromGames">
+            <Download :size="16" /> {{ importing ? 'Importando...' : 'Importar dos jogos' }}
+          </button>
+          <button type="button" class="btn-primary" @click="openForm(null)"><Plus :size="16" /> Adicionar música</button>
+        </div>
       </div>
+
+      <p v-if="importMessage" class="mt-4 rounded-xl bg-primary-50 px-4 py-3 text-sm font-bold text-primary-700">{{ importMessage }}</p>
 
       <KaraokeSongFormModal v-if="formOpen" :song="editing" @saved="onSaved" @close="formOpen = false" />
 
@@ -25,7 +32,7 @@
       <p v-if="loading" class="mt-8 text-ink-muted">Carregando...</p>
       <p v-else-if="error" class="field-error mt-8">{{ error }}</p>
       <p v-else-if="!songs.length" class="card mt-8 text-ink-muted">
-        Nenhuma música salva ainda. Clique em "Adicionar música", ou salve um jogo de karaokê num evento que elas entram aqui sozinhas.
+        Nenhuma música salva ainda. Clique em "Importar dos jogos" para trazer as músicas que você já cadastrou nos eventos, ou em "Adicionar música".
       </p>
       <p v-else-if="!filtered.length" class="card mt-6 text-ink-muted">Nenhuma música encontrada.</p>
 
@@ -73,10 +80,10 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import { Pencil, Plus, Search, Trash2 } from '@lucide/vue'
+import { Download, Pencil, Plus, Search, Trash2 } from '@lucide/vue'
 import KaraokeSongFormModal from '@/games/karaoke/KaraokeSongFormModal.vue'
 import AppShell from '@/layouts/AppShell.vue'
-import { deleteKaraokeLibrarySong, fetchKaraokeLibrary } from '@/services/karaoke'
+import { deleteKaraokeLibrarySong, fetchKaraokeLibrary, importKaraokeSongsFromGames } from '@/services/karaoke'
 import { parseLrc } from '@/games/karaoke/lrc'
 
 const songs = ref([])
@@ -94,6 +101,27 @@ const filtered = computed(() => {
 
 const lineCount = (song) => parseLrc(song.lyrics).filter((line) => line.text).length
 const formatDate = (value) => new Date(value).toLocaleDateString('pt-BR')
+
+const importing = ref(false)
+const importMessage = ref('')
+
+// Traz pra biblioteca as músicas já cadastradas nos jogos de karaokê (as que já estão aqui ficam como estão).
+async function importFromGames() {
+  importing.value = true
+  importMessage.value = ''
+  error.value = ''
+  try {
+    const { found, created } = await importKaraokeSongsFromGames()
+    songs.value = await fetchKaraokeLibrary()
+    if (!found) importMessage.value = 'Nenhuma música encontrada nos jogos de karaokê dos seus eventos.'
+    else if (!created) importMessage.value = 'Todas as músicas dos seus jogos já estão na biblioteca.'
+    else importMessage.value = `${created} ${created === 1 ? 'música importada' : 'músicas importadas'} dos seus jogos de karaokê.`
+  } catch {
+    error.value = 'Não foi possível importar as músicas dos jogos.'
+  } finally {
+    importing.value = false
+  }
+}
 
 const formOpen = ref(false)
 const editing = ref(null)
