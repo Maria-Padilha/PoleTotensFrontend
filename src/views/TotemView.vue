@@ -197,19 +197,34 @@
           {{ captureLeads ? 'Preencha seus dados pra jogar' : 'Quem vai jogar agora?' }}
         </p>
 
-        <div v-if="knownNames.length && !captureLeads" class="mt-10 flex w-full max-w-3xl flex-wrap items-center justify-center gap-4">
-          <button
-            v-for="name in knownNames"
-            :key="name"
-            class="rounded-full border-2 px-8 py-4 text-2xl font-bold shadow-sm backdrop-blur transition-all
-              active:scale-95"
-            :class="gameIsDarkTheme
-              ? 'border-white/30 bg-white/10 text-white hover:bg-white/20'
-              : 'border-ink/10 bg-white text-ink hover:border-primary'"
-            @click="pickName(name)"
+        <!-- jogadores do evento: faixa compacta com altura fixa e rolagem; o campo abaixo filtra a lista -->
+        <div v-if="knownNames.length && !captureLeads" class="mt-8 w-full max-w-3xl">
+          <p class="mb-3 text-sm font-bold uppercase tracking-[0.18em]" :style="gameHudSubTextStyle">
+            <template v-if="playerName.trim()">
+              {{ filteredNames.length }} {{ filteredNames.length === 1 ? 'jogador encontrado' : 'jogadores encontrados' }}
+            </template>
+            <template v-else>
+              {{ knownNames.length }} {{ knownNames.length === 1 ? 'jogador' : 'jogadores' }}<span v-if="knownNames.length > NAMES_VISIBLE"> · role ou digite para filtrar</span>
+            </template>
+          </p>
+          <div
+            v-if="filteredNames.length"
+            class="names-scroll flex max-h-[12.5rem] flex-wrap content-start items-center justify-center gap-3 overflow-y-auto overscroll-contain px-1 py-1"
+            :class="filteredNames.length > NAMES_VISIBLE ? 'names-fade pb-6' : ''"
           >
-            {{ name }}
-          </button>
+            <button
+              v-for="name in filteredNames"
+              :key="name"
+              class="max-w-[16rem] truncate rounded-full border-2 px-5 py-2.5 text-xl font-bold shadow-sm backdrop-blur transition-all
+                active:scale-95"
+              :class="gameIsDarkTheme
+                ? 'border-white/30 bg-white/10 text-white hover:bg-white/20'
+                : 'border-ink/10 bg-white text-ink hover:border-primary'"
+              @click="pickName(name)"
+            >
+              {{ name }}
+            </button>
+          </div>
         </div>
 
         <form class="mt-12 flex w-full max-w-xl flex-col items-center gap-5" @submit.prevent="submitNewName">
@@ -459,6 +474,15 @@ const eventPasswordInput = ref('')
 const eventPasswordError = ref('')
 const playerName = ref('')
 const knownNames = ref([])
+
+// a lista de jogadores mostra até ~9 nomes de uma vez (o resto rola); digitar no campo filtra
+const NAMES_VISIBLE = 9
+const foldText = (text) => String(text || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+const filteredNames = computed(() => {
+  const query = foldText(playerName.value).trim()
+  if (!query) return knownNames.value
+  return knownNames.value.filter((name) => foldText(name).includes(query))
+})
 const leadForm = reactive({ email: '', phone: '', instagram: '' })
 const leadError = ref('')
 const captureLeads = computed(() => Boolean(selectedGame.value?.config?.capture_leads))
@@ -1237,6 +1261,17 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* lista de jogadores: rolagem por toque, barra fina e esmaecer embaixo quando há mais nomes */
+.names-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(128, 128, 128, 0.45) transparent;
+  -webkit-overflow-scrolling: touch;
+}
+.names-fade {
+  -webkit-mask-image: linear-gradient(to bottom, #000 80%, transparent);
+  mask-image: linear-gradient(to bottom, #000 80%, transparent);
+}
+
 .rank-move {
   transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
