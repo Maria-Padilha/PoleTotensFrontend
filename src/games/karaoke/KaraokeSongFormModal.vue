@@ -19,6 +19,13 @@
               <label for="lib-artist">Artista (opcional)</label>
               <input id="lib-artist" v-model="form.artist" type="text" maxlength="255" />
             </div>
+            <div class="field">
+              <label for="lib-genre">Gênero (opcional)</label>
+              <select id="lib-genre" v-model="form.genre">
+                <option value="">Sem gênero</option>
+                <option v-for="g in genreOptions" :key="g" :value="g">{{ g }}</option>
+              </select>
+            </div>
           </div>
 
           <ColorField v-model="form.color" label="Cor da música no totem (cartão e número)" fallback="#e4572e" />
@@ -109,6 +116,7 @@ import KaraokeLyricsSync from './KaraokeLyricsSync.vue'
 import KaraokePreview from './KaraokePreview.vue'
 import { parseLrc } from './lrc'
 import { saveKaraokeLibrarySong } from '@/services/karaoke'
+import { KARAOKE_GENRES } from './genres'
 
 const props = defineProps({
   // música existente a editar; vazio = nova
@@ -120,6 +128,7 @@ const form = reactive({
   id: props.song?.id ?? null,
   title: props.song?.title ?? '',
   artist: props.song?.artist ?? '',
+  genre: props.song?.genre ?? '',
   audio_url: props.song?.audio_url ?? '',
   lyrics: props.song?.lyrics ?? '',
   offset: Number(props.song?.offset) || 0,
@@ -129,6 +138,8 @@ const syncing = ref(false)
 const testing = ref(false)
 const saving = ref(false)
 const error = ref('')
+
+const genreOptions = computed(() => (form.genre && !KARAOKE_GENRES.includes(form.genre) ? [...KARAOKE_GENRES, form.genre] : KARAOKE_GENRES))
 
 const lineCount = computed(() => parseLrc(form.lyrics).filter((line) => line.text).length)
 

@@ -25,6 +25,7 @@ export async function saveKaraokeLibrarySong(song) {
   const payload = {
     title: song.title,
     artist: song.artist || null,
+    genre: song.genre || null,
     audio_url: song.audio_url,
     lyrics: song.lyrics || null,
     color: song.color || null,

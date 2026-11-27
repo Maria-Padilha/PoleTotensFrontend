@@ -13,10 +13,7 @@
         </div>
 
         <div class="border-b border-ink/10 px-5 py-3">
-          <div class="relative">
-            <Search :size="15" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft" />
-            <input v-model="query" type="text" placeholder="Buscar por título ou artista" class="w-full !pl-9" />
-          </div>
+          <KaraokeSongFilters :filters="filters" />
         </div>
 
         <div class="min-h-0 flex-1 overflow-y-auto px-3 py-2">
@@ -36,7 +33,7 @@
               <div class="min-w-0 flex-1">
                 <p class="truncate text-sm font-bold text-ink">{{ song.title }}</p>
                 <p class="truncate text-xs text-ink-muted">
-                  {{ song.artist || 'Artista não informado' }} · {{ lineCount(song) }} {{ lineCount(song) === 1 ? 'linha' : 'linhas' }} sincronizadas
+                  {{ song.artist || 'Artista não informado' }}<template v-if="song.genre"> · {{ song.genre }}</template> · {{ lineCount(song) }} {{ lineCount(song) === 1 ? 'linha' : 'linhas' }} sincronizadas
                 </p>
               </div>
               <span v-if="isUsed(song)" class="shrink-0 rounded-full bg-ink/5 px-2.5 py-1 text-[11px] font-bold text-ink-muted">Já neste evento</span>
@@ -60,8 +57,10 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
-import { Plus, Search, Trash2, X } from '@lucide/vue'
+import { onMounted, ref } from 'vue'
+import { Plus, Trash2, X } from '@lucide/vue'
+import KaraokeSongFilters from './KaraokeSongFilters.vue'
+import { useSongFilters } from './genres'
 import { deleteKaraokeLibrarySong, fetchKaraokeLibrary } from '@/services/karaoke'
 import { parseLrc } from './lrc'
 
@@ -72,17 +71,11 @@ const props = defineProps({
 defineEmits(['select', 'close'])
 
 const songs = ref([])
-const query = ref('')
 const loading = ref(true)
 const error = ref('')
 
-const norm = (text) => String(text || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
-
-const filtered = computed(() => {
-  const q = norm(query.value).trim()
-  if (!q) return songs.value
-  return songs.value.filter((song) => norm(`${song.title} ${song.artist}`).includes(q))
-})
+const filters = useSongFilters(songs)
+const filtered = filters.filtered
 
 const isUsed = (song) => props.usedAudioUrls.includes(song.audio_url)
 const lineCount = (song) => parseLrc(song.lyrics).filter((line) => line.text).length

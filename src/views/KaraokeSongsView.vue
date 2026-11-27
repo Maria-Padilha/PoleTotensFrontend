@@ -22,11 +22,10 @@
       <KaraokeSongFormModal v-if="formOpen" :song="editing" @saved="onSaved" @close="formOpen = false" />
 
       <div v-if="songs.length" class="mt-6 flex flex-wrap items-center justify-between gap-3">
-        <div class="relative w-full sm:max-w-sm">
-          <Search :size="15" class="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-soft" />
-          <input v-model="query" type="text" placeholder="Buscar por título ou artista" class="w-full pl-10!" />
-        </div>
-        <span class="badge badge-muted">{{ songs.length }} {{ songs.length === 1 ? 'música' : 'músicas' }}</span>
+        <KaraokeSongFilters :filters="filters" class="min-w-0 flex-1" />
+        <span class="badge badge-muted">
+          {{ filters.active.value ? `${filtered.length} de ${songs.length}` : songs.length }} {{ songs.length === 1 ? 'música' : 'músicas' }}
+        </span>
       </div>
 
       <p v-if="loading" class="mt-8 text-ink-muted">Carregando...</p>
@@ -68,6 +67,7 @@
             <span class="badge" :class="lineCount(song) ? 'badge-muted' : 'bg-danger-tint text-danger'">
               {{ lineCount(song) }} {{ lineCount(song) === 1 ? 'linha sincronizada' : 'linhas sincronizadas' }}
             </span>
+            <span v-if="song.genre" class="badge badge-muted">{{ song.genre }}</span>
             <span class="badge badge-muted">Salva em {{ formatDate(song.updated_at) }}</span>
           </div>
 
@@ -79,25 +79,21 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
-import { Download, Pencil, Plus, Search, Trash2 } from '@lucide/vue'
+import { onMounted, ref } from 'vue'
+import { Download, Pencil, Plus, Trash2 } from '@lucide/vue'
+import KaraokeSongFilters from '@/games/karaoke/KaraokeSongFilters.vue'
+import { useSongFilters } from '@/games/karaoke/genres'
 import KaraokeSongFormModal from '@/games/karaoke/KaraokeSongFormModal.vue'
 import AppShell from '@/layouts/AppShell.vue'
 import { deleteKaraokeLibrarySong, fetchKaraokeLibrary, importKaraokeSongsFromGames } from '@/services/karaoke'
 import { parseLrc } from '@/games/karaoke/lrc'
 
 const songs = ref([])
-const query = ref('')
 const loading = ref(true)
 const error = ref('')
 
-const norm = (text) => String(text || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
-
-const filtered = computed(() => {
-  const q = norm(query.value).trim()
-  if (!q) return songs.value
-  return songs.value.filter((song) => norm(`${song.title} ${song.artist}`).includes(q))
-})
+const filters = useSongFilters(songs)
+const filtered = filters.filtered
 
 const lineCount = (song) => parseLrc(song.lyrics).filter((line) => line.text).length
 const formatDate = (value) => new Date(value).toLocaleDateString('pt-BR')

@@ -56,6 +56,13 @@
             <label :for="`song-artist-${song.id}`">Artista (opcional)</label>
             <input :id="`song-artist-${song.id}`" v-model="song.artist" type="text" maxlength="255" />
           </div>
+          <div class="field">
+            <label :for="`song-genre-${song.id}`">Gênero (opcional)</label>
+            <select :id="`song-genre-${song.id}`" v-model="song.genre">
+              <option value="">Sem gênero</option>
+              <option v-for="g in genreOptions(song.genre)" :key="g" :value="g">{{ g }}</option>
+            </select>
+          </div>
         </div>
 
         <ColorField v-model="song.color" label="Cor da música no totem (cartão e número)" fallback="#e4572e" />
@@ -152,6 +159,7 @@ import KaraokeLibraryModal from './KaraokeLibraryModal.vue'
 import KaraokeLyricsSync from './KaraokeLyricsSync.vue'
 import KaraokePreview from './KaraokePreview.vue'
 import { songColor } from './songColors'
+import { KARAOKE_GENRES } from './genres'
 import ColorField from '@/components/ColorField.vue'
 import AudioUploadField from '@/components/AudioUploadField.vue'
 import { parseLrc, analyzeLyrics } from './lrc'
@@ -189,6 +197,9 @@ function toggleExpanded(id) {
   expandedIds.value = next
 }
 
+// lista padrão; se a música veio com um gênero fora dela, ele continua selecionável
+const genreOptions = (current) => (current && !KARAOKE_GENRES.includes(current) ? [...KARAOKE_GENRES, current] : KARAOKE_GENRES)
+
 function lineCount(song) {
   return parseLrc(song.lyrics).filter((line) => line.text).length
 }
@@ -202,6 +213,7 @@ function addSong() {
     id: `s_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
     title: '',
     artist: '',
+    genre: '',
     audio_url: '',
     lyrics: '',
     offset: 0,
@@ -218,6 +230,7 @@ function addFromLibrary(entry) {
     id: `s_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
     title: entry.title,
     artist: entry.artist || '',
+    genre: entry.genre || '',
     audio_url: entry.audio_url,
     lyrics: entry.lyrics || '',
     offset: Number(entry.offset) || 0,

@@ -85,10 +85,53 @@
       <h1 class="font-elegant mt-7 text-5xl font-bold sm:text-7xl" :style="hudTextStyle">Escolha a música</h1>
       <p class="mt-4 text-lg sm:text-2xl" :style="hudSubTextStyle">Toque em <strong>Cantar</strong> na música que você quer</p>
 
+      <!-- busca e filtros: aparecem quando há músicas suficientes pra valer a pena -->
+      <div v-if="showFilters" class="mt-8 flex w-full max-w-5xl flex-col items-center gap-3">
+        <div class="relative w-full max-w-xl">
+          <Search :size="22" class="pointer-events-none absolute left-5 top-1/2 -translate-y-1/2 opacity-60" :style="hudSubTextStyle" />
+          <input
+            v-model="filters.query.value"
+            type="text"
+            placeholder="Buscar música, artista ou gênero"
+            class="w-full rounded-full border-2 py-3.5 pl-14 pr-5 text-lg shadow-sm backdrop-blur"
+            :style="searchInputStyle"
+          />
+        </div>
+        <div v-if="filters.genres.value.length > 1" class="flex flex-wrap justify-center gap-2">
+          <button
+            v-for="g in ['', ...filters.genres.value]"
+            :key="`g-${g}`"
+            type="button"
+            class="rounded-full border-2 px-4 py-1.5 text-base font-bold transition-transform active:scale-95"
+            :style="chipStyle(filters.genre.value === g)"
+            @click="filters.genre.value = g"
+          >
+            {{ g || 'Todos os gêneros' }}
+          </button>
+        </div>
+        <div v-if="filters.artists.value.length > 1" class="flex max-h-[7.5rem] flex-wrap justify-center gap-2 overflow-y-auto overscroll-contain px-1">
+          <button
+            v-for="name in ['', ...filters.artists.value]"
+            :key="`a-${name}`"
+            type="button"
+            class="rounded-full border-2 px-4 py-1.5 text-base font-bold transition-transform active:scale-95"
+            :style="chipStyle(filters.artist.value === name)"
+            @click="filters.artist.value = name"
+          >
+            {{ name || 'Todos os artistas' }}
+          </button>
+        </div>
+      </div>
+
+      <p v-if="!visibleSongs.length" class="mt-12 text-xl" :style="hudSubTextStyle">
+        Nenhuma música encontrada.
+        <button type="button" class="ml-1 font-extrabold underline" @click="filters.clear()">Limpar filtros</button>
+      </p>
+
       <!-- só o botão "Cantar" é clicável (o cartão não): evita escolher sem querer ao rolar a tela -->
-      <div class="mt-12 flex w-full max-w-5xl flex-wrap justify-center gap-5 sm:gap-6">
+      <div class="mt-10 flex w-full max-w-5xl flex-wrap justify-center gap-5 sm:gap-6">
         <div
-          v-for="(song, index) in songs"
+          v-for="{ song, index } in visibleSongs"
           :key="song.id"
           class="flex min-h-[12rem] basis-[calc(50%-0.75rem)] flex-col items-start justify-between gap-4 rounded-3xl border-2 p-4
             text-left shadow-lg sm:min-h-[14rem] sm:basis-[calc(33.333%-1.1rem)] sm:p-5"
@@ -390,7 +433,7 @@
 
 <script setup>
 import { ref, reactive, computed, watch, onUnmounted } from 'vue'
-import { Mic, MicOff, Music, Play, Square, Trophy, RotateCcw, Home, ChevronRight, MousePointerClick, Clock } from '@lucide/vue'
+import { Search, Mic, MicOff, Music, Play, Square, Trophy, RotateCcw, Home, ChevronRight, MousePointerClick, Clock } from '@lucide/vue'
 import HighlightedText from '@/components/HighlightedText.vue'
 import GameHud from '@/components/GameHud.vue'
 import api from '@/services/api'
@@ -398,6 +441,7 @@ import { useGameTheme } from '@/composables/useGameTheme'
 import { buildPlayableLines } from './lrc'
 import KaraokeLyrics from './KaraokeLyrics.vue'
 import { songColor, stageBackground, lyricFill } from './songColors'
+import { useSongFilters } from './genres'
 import { useKaraokeVoice } from './useKaraokeVoice'
 
 const props = defineProps({
@@ -433,6 +477,29 @@ const voice = useKaraokeVoice()
 const voiceLevel = voice.level
 
 const songs = computed(() => (props.config?.songs || []).filter((s) => s.audio_url))
+
+// busca/filtros do seletor de músicas. `visibleSongs` guarda o índice original de cada música:
+// a cor e o número do cartão não mudam quando a lista é filtrada.
+const filters = useSongFilters(songs)
+const showFilters = computed(() => songs.value.length > 6)
+const visibleSongs = computed(() => {
+  const ids = new Set(filters.filtered.value.map((song) => song.id))
+  return songs.value.map((song, index) => ({ song, index })).filter(({ song }) => ids.has(song.id))
+})
+const searchInputStyle = computed(() => ({
+  backgroundColor: isDarkTheme.value ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.85)',
+  borderColor: isDarkTheme.value ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.12)',
+  color: isDarkTheme.value ? '#fff' : '#1a2e33',
+}))
+function chipStyle(selected) {
+  return selected
+    ? { backgroundColor: accentColor.value, borderColor: accentColor.value, color: '#fff' }
+    : {
+        backgroundColor: isDarkTheme.value ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.7)',
+        borderColor: isDarkTheme.value ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.12)',
+        color: isDarkTheme.value ? '#fff' : '#1a2e33',
+      }
+}
 
 const phase = ref('start')
 const currentSong = ref(null)
