@@ -71,57 +71,112 @@
     <!-- escolha da música -->
     <div
       v-else-if="phase === 'songs'"
-      class="relative z-10 flex min-h-screen flex-col items-center justify-center px-6 py-16 text-center"
+      class="relative z-10 flex min-h-screen flex-col items-center px-6 pb-20 text-center"
       :style="phasePadding"
     >
+      <!-- o respiro de cima fica aqui (e não no padding) porque o padding do topo é controlado pelo totem -->
+      <div class="h-14 shrink-0 sm:h-20" aria-hidden="true" />
       <span
-        class="flex h-24 w-24 items-center justify-center rounded-full text-white shadow-xl"
+        class="flex h-20 w-20 shrink-0 items-center justify-center rounded-full text-white shadow-xl sm:h-24 sm:w-24"
         :style="{ backgroundColor: accentColor }"
       >
-        <Mic :size="46" />
+        <Mic :size="40" />
       </span>
-      <h1 class="font-elegant mt-8 text-5xl font-bold sm:text-7xl" :style="hudTextStyle">Escolha a música</h1>
-      <!-- quadrados lado a lado: título e artista completos (quebram de linha, sem cortar) -->
-      <div class="mt-10 flex w-full max-w-5xl flex-wrap justify-center gap-4 sm:gap-5">
-        <button
+      <h1 class="font-elegant mt-7 text-5xl font-bold sm:text-7xl" :style="hudTextStyle">Escolha a música</h1>
+      <p class="mt-4 text-lg sm:text-2xl" :style="hudSubTextStyle">Toque em <strong>Cantar</strong> na música que você quer</p>
+
+      <!-- só o botão "Cantar" é clicável (o cartão não): evita escolher sem querer ao rolar a tela -->
+      <div class="mt-12 flex w-full max-w-5xl flex-wrap justify-center gap-5 sm:gap-6">
+        <div
           v-for="(song, index) in songs"
           :key="song.id"
-          type="button"
-          class="flex min-h-[11rem] basis-[calc(50%-0.5rem)] flex-col items-start justify-between gap-3 rounded-3xl border-2 p-4
-            text-left shadow-lg transition-transform active:scale-[0.97] sm:min-h-[13rem] sm:basis-[calc(33.333%-0.9rem)] sm:p-5"
+          class="flex min-h-[12rem] basis-[calc(50%-0.75rem)] flex-col items-start justify-between gap-4 rounded-3xl border-2 p-4
+            text-left shadow-lg sm:min-h-[14rem] sm:basis-[calc(33.333%-1.1rem)] sm:p-5"
           :style="songCardStyle(song, index)"
-          @click="selectSong(song)"
         >
-          <span class="flex w-full items-center justify-between">
-            <span
-              class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-xl font-extrabold text-white shadow-md sm:h-12 sm:w-12"
-              :style="{ backgroundColor: songColor(song, index) }"
-            >
-              {{ index + 1 }}
-            </span>
-            <span
-              class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white shadow-md sm:h-11 sm:w-11"
-              :style="{ backgroundColor: songColor(song, index) }"
-            >
-              <Play :size="18" class="translate-x-0.5 fill-current" />
-            </span>
-          </span>
           <span class="block w-full min-w-0">
+            <span class="mb-3 flex items-center justify-between gap-2">
+              <span
+                class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-lg font-extrabold text-white shadow-md sm:h-11 sm:w-11"
+                :style="{ backgroundColor: songColor(song, index) }"
+              >
+                {{ index + 1 }}
+              </span>
+              <span
+                v-if="durations[song.id]"
+                class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-base font-bold sm:text-lg"
+                :class="isDarkTheme ? 'bg-white/15 text-white' : 'bg-white/80 text-ink'"
+              >
+                <Clock :size="15" /> {{ formatDuration(durations[song.id]) }}
+              </span>
+            </span>
             <span class="block break-words text-xl font-bold leading-tight sm:text-2xl" :class="cardTextClass">{{ song.title }}</span>
             <span v-if="song.artist" class="mt-1 block break-words text-base leading-snug sm:text-lg" :class="cardMutedClass">
               {{ song.artist }}
             </span>
           </span>
-        </button>
+          <button
+            type="button"
+            class="flex w-full items-center justify-center gap-2 rounded-full py-3 text-lg font-extrabold text-white shadow-md
+              transition-transform active:scale-95 sm:py-3.5 sm:text-xl"
+            :style="{ backgroundColor: songColor(song, index) }"
+            @click="confirmSong = song"
+          >
+            <Play :size="20" class="fill-current" /> Cantar
+          </button>
+        </div>
       </div>
       <button
         type="button"
-        class="mt-12 text-lg font-bold uppercase tracking-[0.2em] transition-opacity hover:opacity-70"
+        class="mt-14 text-lg font-bold uppercase tracking-[0.2em] transition-opacity hover:opacity-70"
         :style="hudSubTextStyle"
         @click="backToStart"
       >
         ← Voltar
       </button>
+
+      <!-- confirmação: só começa depois de confirmar -->
+      <div
+        v-if="confirmSong"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/65 px-6"
+        @click.self="confirmSong = null"
+      >
+        <div
+          class="w-full max-w-lg rounded-[2rem] border-2 p-8 text-center shadow-2xl sm:p-10"
+          :style="songCardStyle(confirmSong, confirmIndex)"
+        >
+          <span
+            class="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl text-3xl font-extrabold text-white shadow-md"
+            :style="{ backgroundColor: songColor(confirmSong, confirmIndex) }"
+          >
+            {{ confirmIndex + 1 }}
+          </span>
+          <p class="mt-5 text-sm font-bold uppercase tracking-[0.25em]" :class="cardMutedClass">Cantar esta música?</p>
+          <p class="mt-3 break-words text-3xl font-bold leading-tight sm:text-4xl" :class="cardTextClass">{{ confirmSong.title }}</p>
+          <p v-if="confirmSong.artist" class="mt-2 break-words text-xl sm:text-2xl" :class="cardMutedClass">{{ confirmSong.artist }}</p>
+          <p v-if="durations[confirmSong.id]" class="mt-3 inline-flex items-center gap-1.5 text-lg font-bold" :class="cardMutedClass">
+            <Clock :size="16" /> {{ formatDuration(durations[confirmSong.id]) }}
+          </p>
+          <div class="mt-8 grid grid-cols-2 gap-4">
+            <button
+              type="button"
+              class="rounded-2xl border-2 py-5 text-xl font-bold transition-transform active:scale-95"
+              :class="isDarkTheme ? 'border-white/30 text-white' : 'border-ink/15 text-ink'"
+              @click="confirmSong = null"
+            >
+              Voltar
+            </button>
+            <button
+              type="button"
+              class="flex items-center justify-center gap-2 rounded-2xl py-5 text-xl font-extrabold text-white shadow-lg transition-transform active:scale-95"
+              :style="{ backgroundColor: songColor(confirmSong, confirmIndex) }"
+              @click="confirmAndSing"
+            >
+              <Play :size="22" class="fill-current" /> Cantar
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- microfone / calibração / contagem -->
@@ -267,17 +322,25 @@
     <!-- ranking de apresentações -->
     <div
       v-else-if="phase === 'ranking'"
-      class="relative z-10 flex min-h-screen flex-col items-center px-6 py-16 text-center"
+      class="relative z-10 flex min-h-screen flex-col items-center px-6 pb-20 text-center"
       :style="phasePadding"
     >
-      <h1 class="font-elegant mt-6 text-5xl font-bold sm:text-7xl" :style="hudTextStyle">Ranking do karaokê</h1>
+      <!-- o respiro de cima fica aqui (e não no padding) porque o padding do topo é controlado pelo totem -->
+      <div class="h-16 shrink-0 sm:h-24" aria-hidden="true" />
+      <span
+        class="flex h-20 w-20 shrink-0 items-center justify-center rounded-full text-white shadow-xl sm:h-24 sm:w-24"
+        :style="{ backgroundColor: accentColor }"
+      >
+        <Trophy :size="40" />
+      </span>
+      <h1 class="font-elegant mt-7 text-5xl font-bold sm:text-7xl" :style="hudTextStyle">Ranking do karaokê</h1>
 
       <p v-if="rankingLoading && !ranking.length" class="mt-10 text-2xl" :style="hudSubTextStyle">Carregando...</p>
       <p v-else-if="!ranking.length" class="mt-10 text-2xl" :style="hudSubTextStyle">
         {{ publicToken ? 'Ninguém pontuou ainda.' : 'O ranking só aparece no jogo de verdade (não no preview).' }}
       </p>
 
-      <div v-else class="mt-10 flex w-full max-w-4xl flex-col gap-3">
+      <div v-else class="mt-12 flex w-full max-w-4xl flex-col gap-4">
         <div
           v-for="(row, i) in ranking"
           :key="row.id"
@@ -326,8 +389,8 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onUnmounted } from 'vue'
-import { Mic, MicOff, Music, Play, Square, Trophy, RotateCcw, Home, ChevronRight, MousePointerClick } from '@lucide/vue'
+import { ref, reactive, computed, watch, onUnmounted } from 'vue'
+import { Mic, MicOff, Music, Play, Square, Trophy, RotateCcw, Home, ChevronRight, MousePointerClick, Clock } from '@lucide/vue'
 import HighlightedText from '@/components/HighlightedText.vue'
 import GameHud from '@/components/GameHud.vue'
 import api from '@/services/api'
@@ -384,6 +447,7 @@ const shownScore = ref(0)
 // volume da música durante a apresentação (1 = máximo): um pouco abaixo pra voz do cantor aparecer
 const PERFORMANCE_VOLUME = 0.7
 let audio = null
+let musicStartedAt = null // performance.now() em que a música realmente começou a tocar
 let rafId = null
 let runId = 0
 
@@ -428,6 +492,57 @@ function barHeight(n) {
 }
 
 // ---- fluxo -----------------------------------------------------------------
+
+// ---- duração das músicas (mostrada nos cartões) -----------------------------------
+// Não fica salva no jogo: lê dos próprios arquivos (só os metadados, poucos KB cada) ao abrir a
+// escolha de música, e guarda por link pra não pedir de novo.
+const durations = reactive({})
+const durationCache = new Map()
+
+function formatDuration(seconds) {
+  const total = Math.round(Number(seconds) || 0)
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`
+}
+
+function loadDurations() {
+  for (const song of songs.value) {
+    if (durations[song.id]) continue
+    if (durationCache.has(song.audio_url)) {
+      durations[song.id] = durationCache.get(song.audio_url)
+      continue
+    }
+    const el = new Audio()
+    el.preload = 'metadata'
+    el.onloadedmetadata = () => {
+      if (Number.isFinite(el.duration) && el.duration > 0) {
+        durationCache.set(song.audio_url, el.duration)
+        durations[song.id] = el.duration
+      }
+      el.removeAttribute('src')
+      el.load()
+    }
+    el.onerror = () => el.removeAttribute('src')
+    el.src = song.audio_url
+  }
+}
+
+watch(
+  () => phase.value,
+  (value) => {
+    if (value === 'songs') loadDurations()
+  },
+  { immediate: true }
+)
+
+// música aguardando confirmação (modal "Cantar esta música?")
+const confirmSong = ref(null)
+const confirmIndex = computed(() => Math.max(0, songs.value.findIndex((item) => item.id === confirmSong.value?.id)))
+
+function confirmAndSing() {
+  const song = confirmSong.value
+  confirmSong.value = null
+  if (song) selectSong(song)
+}
 
 function selectSong(song) {
   currentSong.value = song
@@ -499,6 +614,8 @@ async function beginPerformance(askMic, withoutScore = false) {
   if (scoring) voice.start(() => audio.currentTime)
 
   audio.onended = () => finishPerformance(scoring)
+  musicStartedAt = null
+  audio.addEventListener('playing', () => { if (musicStartedAt === null) musicStartedAt = performance.now() }, { once: true })
   try {
     await audio.play()
   } catch (err) {
@@ -527,7 +644,11 @@ async function finishPerformance(scoring) {
   stopLoops()
   const song = currentSong.value
   let outcome = { score: null, recording: null }
-  if (scoring) outcome = await voice.finish(lines.value)
+  let recordingOffsetMs = null
+  if (scoring) {
+    recordingOffsetMs = voice.recordingOffsetMs(musicStartedAt)
+    outcome = await voice.finish(lines.value)
+  }
   voice.close()
 
   result.value = outcome
@@ -539,6 +660,7 @@ async function finishPerformance(scoring) {
     maxScore: 1000,
     song: { id: song.id, title: song.title },
     recording: outcome.recording,
+    recordingOffsetMs,
   })
 }
 
@@ -646,11 +768,34 @@ function stopPlayback() {
   }
   voiceAudio = null
   musicAudio = null
+  clearTimeout(replayTimer)
   playingId.value = null
 }
 
-// Replay: a voz gravada toca junto com a música original, começando no mesmo
-// instante em que a gravação começou. A música fica baixinha (10%) pra voz do cantor aparecer.
+// Replay: a voz gravada toca junto com a música original. Na gravação, a voz sempre chega um pouco
+// atrasada em relação à música (o gravador começa antes dela e o microfone tem atraso de captura);
+// no canto o atraso foi medido e guardado em `recording_offset_ms`. Aqui a música é atrasada nessa
+// medida, e as duas faixas só começam depois de carregadas, senão a mais lenta de baixar sai depois.
+// Gravações antigas (sem a medida) usam um valor médio.
+const DEFAULT_RECORDING_OFFSET_MS = 300
+const REPLAY_LOAD_TIMEOUT_MS = 10000
+let replayTimer = null
+
+function whenReady(el) {
+  return new Promise((resolve) => {
+    if (el.readyState >= 4) return resolve()
+    const done = () => {
+      el.removeEventListener('canplaythrough', done)
+      el.removeEventListener('error', done)
+      clearTimeout(timeout)
+      resolve()
+    }
+    const timeout = setTimeout(done, REPLAY_LOAD_TIMEOUT_MS)
+    el.addEventListener('canplaythrough', done)
+    el.addEventListener('error', done)
+  })
+}
+
 async function togglePlayback(row) {
   if (playingId.value === row.id) {
     stopPlayback()
@@ -659,15 +804,42 @@ async function togglePlayback(row) {
   stopPlayback()
 
   const song = songs.value.find((s) => s.id === row.song_id) || songs.value.find((s) => s.title === row.song)
-  voiceAudio = new Audio(row.recording_url)
-  voiceAudio.volume = 1
-  musicAudio = song ? new Audio(song.audio_url) : null
-  if (musicAudio) musicAudio.volume = 0.1
+  const voiceEl = new Audio(row.recording_url)
+  const musicEl = song ? new Audio(song.audio_url) : null
+  voiceEl.preload = 'auto'
+  voiceEl.volume = 1
+  voiceAudio = voiceEl
+  if (musicEl) {
+    musicEl.preload = 'auto'
+    musicEl.volume = 0.1
+  }
+  musicAudio = musicEl
 
   playingId.value = row.id
-  voiceAudio.onended = stopPlayback
+  voiceEl.onended = stopPlayback
+
+  const offsetMs = Number.isFinite(row.recording_offset_ms) ? row.recording_offset_ms : DEFAULT_RECORDING_OFFSET_MS
+  const myPlayingId = row.id
+
   try {
-    await Promise.all([voiceAudio.play(), musicAudio ? musicAudio.play() : Promise.resolve()])
+    await Promise.all([whenReady(voiceEl), musicEl ? whenReady(musicEl) : Promise.resolve()])
+    if (playingId.value !== myPlayingId) return // parou/trocou enquanto carregava
+
+    if (!musicEl) {
+      await voiceEl.play()
+      return
+    }
+
+    // offset > 0: a música entra depois da voz; offset < 0: a voz entra depois da música.
+    const [first, second] = offsetMs >= 0 ? [voiceEl, musicEl] : [musicEl, voiceEl]
+    const gap = Math.abs(offsetMs)
+    const t0 = performance.now()
+    await first.play()
+    // o próprio play() leva alguns ms pra começar: desconta pra a segunda faixa não sair atrasada
+    const wait = Math.max(0, gap - (performance.now() - t0))
+    replayTimer = setTimeout(() => {
+      if (playingId.value === myPlayingId) second.play().catch(() => stopPlayback())
+    }, wait)
   } catch (err) {
     stopPlayback()
   }

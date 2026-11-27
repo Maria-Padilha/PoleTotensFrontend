@@ -27,6 +27,9 @@ const FULL_COVERAGE = 0.65
 // quando a pessoa canta alto.
 const RECORDING_GAIN = 2.5
 
+// estimativa do atraso do caminho microfone → compressor → codificador (ms)
+const RECORDER_PIPELINE_MS = 50
+
 const RECORDER_TYPES = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus']
 
 function rootMeanSquare(buffer) {
@@ -75,6 +78,7 @@ export function useKaraokeVoice() {
   let sampleTimer = null
   let recorder = null
   let recordedChunks = []
+  let recordingStartedAt = null
   let noiseFloor = 0.012
   let frames = []
 
@@ -141,6 +145,11 @@ export function useKaraokeVoice() {
       recorder = new MediaRecorder(recordingDestination?.stream || stream, mimeType ? { mimeType } : undefined)
       recorder.ondataavailable = (e) => {
         if (e.data?.size) recordedChunks.push(e.data)
+      }
+      recordingStartedAt = performance.now()
+      // o evento 'start' marca o instante em que a gravação realmente começou
+      recorder.onstart = () => {
+        recordingStartedAt = performance.now()
       }
       recorder.start(1000)
     } catch (err) {
@@ -238,5 +247,19 @@ export function useKaraokeVoice() {
     recordingDestination = null
   }
 
-  return { level, micError, openMic, calibrate, start, finish, close }
+  // Quanto (ms) a voz gravada chega atrasada em relação à música. Somam:
+  //  - o intervalo entre o início da gravação e o início da música;
+  //  - o atraso do som sair da caixa (o cantor canta no que OUVE, que é depois do play) e o do
+  //    microfone entregar o áudio, ambos informados pelo navegador quando disponíveis;
+  //  - uma estimativa do processamento da gravação (compressor + codificador).
+  // O replay atrasa a música nessa medida e as duas faixas ficam alinhadas como na hora de cantar.
+  function recordingOffsetMs(musicStartedAt) {
+    if (recordingStartedAt === null || !Number.isFinite(musicStartedAt)) return null
+    const inputLatency = (stream?.getAudioTracks?.()[0]?.getSettings?.().latency || 0) * 1000
+    const outputLatency = ((audioCtx?.outputLatency || 0) + (audioCtx?.baseLatency || 0)) * 1000
+    const offset = musicStartedAt - recordingStartedAt + inputLatency + outputLatency + RECORDER_PIPELINE_MS
+    return Math.round(Math.max(-2000, Math.min(2000, offset)))
+  }
+
+  return { level, micError, openMic, calibrate, start, finish, close, recordingOffsetMs }
 }

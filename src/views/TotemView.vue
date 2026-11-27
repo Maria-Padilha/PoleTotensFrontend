@@ -803,7 +803,7 @@ async function handleFinished(payload) {
       : payload?.run
         ? { cleared: payload.run.cleared, precision: payload.run.precision, misses: payload.run.misses }
         : payload?.song
-        ? { song: payload.song.title, song_id: payload.song.id }
+        ? { song: payload.song.title, song_id: payload.song.id, recording_offset_ms: payload.recordingOffsetMs ?? null }
         : payload?.won !== null && payload?.won !== undefined
         ? { won: payload.won }
         : null
