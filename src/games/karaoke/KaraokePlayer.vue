@@ -97,28 +97,74 @@
             :style="searchInputStyle"
           />
         </div>
-        <div v-if="filters.genres.value.length > 1" class="flex flex-wrap justify-center gap-2">
+        <!-- dois botões de filtro; as opções só aparecem ao tocar neles -->
+        <div v-if="filters.genres.value.length > 1 || filters.artists.value.length > 1" class="flex flex-wrap justify-center gap-3">
           <button
-            v-for="g in ['', ...filters.genres.value]"
-            :key="`g-${g}`"
+            v-if="filters.genres.value.length > 1"
             type="button"
-            class="rounded-full border-2 px-4 py-1.5 text-base font-bold transition-transform active:scale-95"
-            :style="chipStyle(filters.genre.value === g)"
-            @click="filters.genre.value = g"
+            class="flex max-w-[18rem] items-center gap-2 rounded-full border-2 px-5 py-2.5 text-lg font-bold transition-transform active:scale-95"
+            :style="chipStyle(!!filters.genre.value)"
+            @click="filterPicker = 'genre'"
           >
-            {{ g || 'Todos os gêneros' }}
+            <Filter :size="18" class="shrink-0" />
+            <span class="truncate">{{ filters.genre.value || 'Gênero' }}</span>
+            <ChevronDown :size="18" class="shrink-0" />
+          </button>
+          <button
+            v-if="filters.artists.value.length > 1"
+            type="button"
+            class="flex max-w-[18rem] items-center gap-2 rounded-full border-2 px-5 py-2.5 text-lg font-bold transition-transform active:scale-95"
+            :style="chipStyle(!!filters.artist.value)"
+            @click="filterPicker = 'artist'"
+          >
+            <Filter :size="18" class="shrink-0" />
+            <span class="truncate">{{ filters.artist.value || 'Artista' }}</span>
+            <ChevronDown :size="18" class="shrink-0" />
+          </button>
+          <button
+            v-if="filters.active.value"
+            type="button"
+            class="flex items-center gap-2 rounded-full border-2 px-5 py-2.5 text-lg font-bold transition-transform active:scale-95"
+            :style="chipStyle(false)"
+            @click="filters.clear()"
+          >
+            <X :size="18" /> Limpar
           </button>
         </div>
-        <div v-if="filters.artists.value.length > 1" class="flex max-h-[7.5rem] flex-wrap justify-center gap-2 overflow-y-auto overscroll-contain px-1">
+      </div>
+
+      <!-- escolha do gênero / artista -->
+      <div
+        v-if="filterPicker"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-6"
+        @click.self="filterPicker = null"
+      >
+        <div
+          class="flex max-h-[80vh] w-full max-w-2xl flex-col rounded-[2rem] border-2 p-6 text-center shadow-2xl sm:p-8"
+          :style="pickerStyle"
+        >
+          <p class="text-sm font-bold uppercase tracking-[0.25em]" :class="cardMutedClass">
+            {{ filterPicker === 'genre' ? 'Filtrar por gênero' : 'Filtrar por artista' }}
+          </p>
+          <div class="mt-5 flex min-h-0 flex-1 flex-wrap content-start justify-center gap-3 overflow-y-auto overscroll-contain px-1 py-1">
+            <button
+              v-for="option in pickerOptions"
+              :key="option"
+              type="button"
+              class="max-w-full truncate rounded-full border-2 px-5 py-2.5 text-lg font-bold transition-transform active:scale-95"
+              :style="chipStyle(pickerValue === option)"
+              @click="pickFilter(option)"
+            >
+              {{ option || (filterPicker === 'genre' ? 'Todos os gêneros' : 'Todos os artistas') }}
+            </button>
+          </div>
           <button
-            v-for="name in ['', ...filters.artists.value]"
-            :key="`a-${name}`"
             type="button"
-            class="rounded-full border-2 px-4 py-1.5 text-base font-bold transition-transform active:scale-95"
-            :style="chipStyle(filters.artist.value === name)"
-            @click="filters.artist.value = name"
+            class="mt-6 rounded-2xl border-2 py-3.5 text-lg font-bold transition-transform active:scale-95"
+            :class="isDarkTheme ? 'border-white/30 text-white' : 'border-ink/15 text-ink'"
+            @click="filterPicker = null"
           >
-            {{ name || 'Todos os artistas' }}
+            Fechar
           </button>
         </div>
       </div>
@@ -433,7 +479,7 @@
 
 <script setup>
 import { ref, reactive, computed, watch, onUnmounted } from 'vue'
-import { Search, Mic, MicOff, Music, Play, Square, Trophy, RotateCcw, Home, ChevronRight, MousePointerClick, Clock } from '@lucide/vue'
+import { Search, Filter, ChevronDown, X, Mic, MicOff, Music, Play, Square, Trophy, RotateCcw, Home, ChevronRight, MousePointerClick, Clock } from '@lucide/vue'
 import HighlightedText from '@/components/HighlightedText.vue'
 import GameHud from '@/components/GameHud.vue'
 import api from '@/services/api'
@@ -486,6 +532,19 @@ const visibleSongs = computed(() => {
   const ids = new Set(filters.filtered.value.map((song) => song.id))
   return songs.value.map((song, index) => ({ song, index })).filter(({ song }) => ids.has(song.id))
 })
+// filtro aberto no momento: 'genre' | 'artist' | null
+const filterPicker = ref(null)
+const pickerOptions = computed(() => ['', ...(filterPicker.value === 'genre' ? filters.genres.value : filters.artists.value)])
+const pickerValue = computed(() => (filterPicker.value === 'genre' ? filters.genre.value : filters.artist.value))
+const pickerStyle = computed(() => ({
+  backgroundColor: isDarkTheme.value ? '#0b1f23' : '#ffffff',
+  borderColor: accentColor.value,
+}))
+function pickFilter(option) {
+  if (filterPicker.value === 'genre') filters.genre.value = option
+  else filters.artist.value = option
+  filterPicker.value = null
+}
 const searchInputStyle = computed(() => ({
   backgroundColor: isDarkTheme.value ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.85)',
   borderColor: isDarkTheme.value ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.12)',
