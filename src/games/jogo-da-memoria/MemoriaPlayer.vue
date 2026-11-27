@@ -74,7 +74,7 @@
     <!-- jogando -->
     <div
       v-else-if="phase === 'playing'"
-      class="relative z-10 flex min-h-screen flex-col px-6 py-8 sm:px-20 sm:py-12"
+      class="relative z-10 flex min-h-screen flex-col px-6 py-8 sm:px-10 sm:py-12"
       :style="phasePadding"
     >
       <GameHud
@@ -89,7 +89,7 @@
 
       <div class="flex flex-1 flex-col items-center justify-center py-6">
         <div
-          class="relative w-full max-w-[1500px] rounded-[2.5rem] p-8 text-center shadow-2xl backdrop-blur sm:p-14"
+          class="relative w-full max-w-[1500px] rounded-[2.5rem] p-6 text-center shadow-2xl backdrop-blur sm:p-8"
           :class="cardSurfaceClass"
         >
           <div
@@ -123,8 +123,8 @@
           </span>
 
           <div
-            class="mx-auto mt-8 grid w-full max-w-[1200px] gap-3 sm:mt-12 sm:gap-5"
-            :style="{ gridTemplateColumns: `repeat(${gridColumns}, minmax(0, 1fr))` }"
+            class="mx-auto mt-8 grid w-full max-w-[1200px] gap-3 sm:mt-10 sm:gap-4"
+            :style="{ gridTemplateColumns: `repeat(${gridColumns}, minmax(0, 1fr))`, maxWidth: gridMaxWidth }"
           >
             <button
               v-for="card in board"
@@ -145,7 +145,7 @@
                   style="backface-visibility: hidden"
                   :style="{ backgroundColor: accentColor }"
                 >
-                  <span class="h-4 w-4 rotate-45 bg-white/70 sm:h-7 sm:w-7" />
+                  <span class="aspect-square w-1/4 rotate-45 bg-white/70" />
                 </div>
                 <div
                   class="absolute inset-0 flex items-center justify-center overflow-hidden rounded-xl border-2 p-1.5
@@ -238,7 +238,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onUnmounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { RotateCcw, Trophy, MousePointerClick, LayoutGrid, Star, Home } from '@lucide/vue'
 import HighlightedText from '@/components/HighlightedText.vue'
 import GameHud from '@/components/GameHud.vue'
@@ -308,14 +308,35 @@ const allMatched = computed(() => totalPairs.value > 0 && correctCount.value ===
 const points = computed(() => earnedPoints.value)
 const maxPoints = computed(() => totalPairs.value * pointsPerQuestion.value)
 
-const gridColumns = computed(() => {
+// Tamanho da janela: o número de colunas é escolhido pra as cartas ficarem o MAIOR possível naquele
+// formato de tela (em totem em pé, poucas colunas e várias linhas; em tela deitada, o contrário).
+const viewport = reactive({ w: window.innerWidth, h: window.innerHeight })
+function updateViewport() {
+  viewport.w = window.innerWidth
+  viewport.h = window.innerHeight
+}
+onMounted(() => window.addEventListener('resize', updateViewport))
+onUnmounted(() => window.removeEventListener('resize', updateViewport))
+
+// Colunas e tamanho máximo de cada carta (px) pra caber inteiro na tela.
+const gridLayout = computed(() => {
   const n = board.value.length || 1
-  const target = Math.sqrt(n * 1.6)
-  const candidates = [6, 5, 4, 3]
-  const divisor = candidates.find((c) => n % c === 0 && Math.abs(c - target) <= 2)
-  if (divisor) return divisor
-  return candidates.reduce((a, b) => (Math.abs(a - target) < Math.abs(b - target) ? a : b))
+  const availW = Math.min(1400, viewport.w - 150) // largura útil da grade (descontando margens e moldura)
+  const availH = viewport.h - 520 // altura útil (descontando placar, título, dica e margens)
+  let best = { cols: 2, size: 0, score: 0 }
+  for (let cols = 2; cols <= Math.min(7, n); cols++) {
+    const rows = Math.ceil(n / cols)
+    const empty = rows * cols - n
+    const size = Math.min(availW / cols, availH / rows)
+    // prefere grades sem carta sobrando sozinha na última linha
+    const score = size * (1 - 0.08 * empty)
+    if (score > best.score + 0.5) best = { cols, size, score }
+  }
+  return best
 })
+const gridColumns = computed(() => gridLayout.value.cols)
+// a grade não passa da largura em que as cartas ainda cabem na altura da tela
+const gridMaxWidth = computed(() => `${Math.floor(gridLayout.value.size * gridLayout.value.cols)}px`)
 
 const timerDashOffset = computed(() => {
   if (!timerSeconds.value) return 0
